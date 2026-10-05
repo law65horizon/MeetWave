@@ -36,7 +36,7 @@ async function bootstrap() {
   // Express
   const app = express();
   app.use(cors({ 
-    origin: [config.CLIENT_ORIGIN], 
+    origin: [config.CLIENT_ORIGIN, 'http://localhost:5173'], 
     credentials: true ,
      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],

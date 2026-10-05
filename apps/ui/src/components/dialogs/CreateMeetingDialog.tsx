@@ -47,17 +47,15 @@ export default function CreateMeetingDialog({ open, onClose }: Props) {
       //   onClose();
       //   socket.disconnect()
       // });
-
-      const server = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
-      const result = await apiFetch<{roomId: string}>(`${server}/create`, {
+      const result = await apiFetch<{roomId: string}>(`/create`, {
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           name: name.trim(),
           mode,
           isLocked: locked,
           password: locked && password ? password : undefined,
           maxParticipants: maxP
-        }), 
+        }, 
       })
 
       // if (!response.ok)  throw new Error(`HTTP error! status: ${response.status}`);
