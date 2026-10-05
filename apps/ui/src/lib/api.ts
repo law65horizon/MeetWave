@@ -65,7 +65,10 @@ export async function apiFetch<T = unknown>(path: string, options: Options = {},
   const res = await fetch(`${API_URL}${path}`, {
     method: options.method ?? (hasBody ? 'POST' : 'GET'),
     credentials: 'include', // send and accept the httpOnly cookies
-    headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(hasBody && { 'Content-Type': 'application/json' })
+    }, 
     body: hasBody ? JSON.stringify(options.body) : undefined,
   });
 

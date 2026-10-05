@@ -7,7 +7,10 @@ export function getSocket(): Socket {
     socket = io(import.meta.env.VITE_API_URL || 'https://66ce-143-105-174-4.ngrok-free.app', {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      withCredentials: true
+      withCredentials: true,
+      extraHeaders: { 
+        "ngrok-skip-browser-warning": "true"
+      }
     });
   }
   return socket;
