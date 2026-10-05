@@ -9,6 +9,7 @@ import { Groups, CastForEducation, Lock, Visibility, VisibilityOff } from '@mui/
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import type { RoomMode } from '../../types';
+import { apiFetch } from '../../lib/api';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -48,24 +49,20 @@ export default function CreateMeetingDialog({ open, onClose }: Props) {
       // });
 
       const server = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
-      const response = await fetch(`${server}/create`, {
+      const result = await apiFetch<{roomId: string}>(`${server}/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           name: name.trim(),
           mode,
           isLocked: locked,
           password: locked && password ? password : undefined,
           maxParticipants: maxP
-        }),  
-        credentials: 'include'      
+        }), 
       })
 
-      if (!response.ok)  throw new Error(`HTTP error! status: ${response.status}`);
+      // if (!response.ok)  throw new Error(`HTTP error! status: ${response.status}`);
 
-      const result = await response.json()
+      // const result = await response.json()
       navigate(`/meeting/${result.roomId}`);
       onClose();
 

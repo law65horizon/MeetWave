@@ -3,7 +3,6 @@ import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import { config } from './config';
-import { initFirebase } from './firebase';
 import { workerPool } from './mediasoup/workerPool';
 import { createSocketServer } from './socket';
 import { redis, isRedisHealthy, connectRedis } from './redis/client';
@@ -36,7 +35,12 @@ async function bootstrap() {
 
   // Express
   const app = express();
-  app.use(cors({ origin: [config.CLIENT_ORIGIN], credentials: true }));
+  app.use(cors({ 
+    origin: [config.CLIENT_ORIGIN], 
+    credentials: true ,
+     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  }));
   app.use(express.json());
   app.use(cookieParser())
 

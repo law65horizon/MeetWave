@@ -11,7 +11,8 @@ const isProd = process.env.NODE_ENV === "production";
 // (localhost:5173 + localhost:3000 in dev, app.example.com + api.example.com in prod).
 // If they live on completely different domains you need COOKIE_SAMESITE=none
 // (which forces `secure`), and then you should also add CSRF protection.
-const sameSite = (process.env.COOKIE_SAMESITE as "lax" | "strict" | "none" | undefined) ?? "lax";
+const sameSite = 'none';
+// const sameSite = (process.env.COOKIE_SAMESITE as "lax" | "strict" | "none" | undefined) ?? "lax";
 
 const base: CookieOptions = {
   httpOnly: true, // JavaScript on the page can never read these
