@@ -8,7 +8,6 @@ import {
   Lock, BroadcastOnHome, Groups, DarkMode, LightMode,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { signOut, auth } from '../../lib/firebase';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeMode } from '../../main';
 import CreateMeetingDialog from '../../components/dialogs/CreateMeetingDialog';
@@ -16,6 +15,7 @@ import JoinMeetingDialog from '../../components/dialogs/JoinMeetingDialog';
 
 export default function HomePage() {
   const navigate   = useNavigate();
+  const logout = useAuthStore(state => state.logout)
   const theme      = useTheme();
   const { mode, toggleMode } = useThemeMode();
   const { user }   = useAuthStore();
@@ -26,7 +26,7 @@ export default function HomePage() {
   const isDark = mode === 'dark';
 
   async function handleSignOut() {
-    await signOut(auth);
+    await logout();
     navigate('/auth');
   }
 

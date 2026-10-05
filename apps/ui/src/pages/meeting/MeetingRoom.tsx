@@ -6,7 +6,6 @@ import {
 } from '@mui/material';
 import { Lock, VideoCall } from '@mui/icons-material';
 import toast from 'react-hot-toast';
-import { auth } from '../../lib/firebase';
 import { connectSocket, getSocket } from '../../lib/socket';
 import { useAuthStore } from '../../store/authStore';
 import { useMeetingStore } from '../../store/meetingStore';
@@ -28,7 +27,7 @@ export default function MeetingRoom() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  // const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const { user } = useAuthStore();
   const store = useMeetingStore();
@@ -51,7 +50,7 @@ export default function MeetingRoom() {
 
   // ── Semantic theme aliases ────────────────────────────────────────────────
   const primary   = theme.palette.primary.main;
-  const secondary = theme.palette.secondary.main;
+  // const secondary = theme.palette.secondary.main;
   const warning   = theme.palette.warning.main;
   const error     = theme.palette.error.main;
   const bgDefault = theme.palette.background.default;
@@ -70,9 +69,9 @@ export default function MeetingRoom() {
     async function boot() {
       if (!roomId) return;
       try {
-        const token = await auth.currentUser?.getIdToken();
-        const displayName = localStorage.getItem('displayName')
-        const socket = await connectSocket(roomId, token??undefined, displayName??undefined);
+        // const token = await auth.currentUser?.getIdToken();
+        const displayName = localStorage.getItem('displayName')??user?.name
+        const socket = await connectSocket(roomId, displayName??undefined);
         socketRef.current = socket;
 
         await new Promise<void>((res, rej) => {

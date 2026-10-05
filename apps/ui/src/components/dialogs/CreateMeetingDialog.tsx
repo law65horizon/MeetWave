@@ -9,8 +9,6 @@ import { Groups, CastForEducation, Lock, Visibility, VisibilityOff } from '@mui/
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import type { RoomMode } from '../../types';
-import { connectSocket } from '../../lib/socket';
-import { auth } from '../../lib/firebase';
 
 interface Props { open: boolean; onClose: () => void; }
 

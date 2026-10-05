@@ -16,6 +16,7 @@ import { requireAuth } from './middleware';
 import { AppRequest } from './types';
 import { findUserById } from './routes/auth/authController';
 import { AppError } from './lib/error';
+import { randomUUID } from 'crypto';
 const SERVER_ID = os.hostname();
 function generateRoomId(): string {
   const words = ['oak','river','pine','lake','moon','star','mist','dawn','sage','fern','iris','wave'];
@@ -62,8 +63,8 @@ async function bootstrap() {
     try {
       const userId = req.userId!
       const user = await findUserById(userId)
-      const roomId = 'james'
-      // generateRoomId();
+      const roomId = generateRoomId()
+      generateRoomId();
 
       if (!user) {
         throw new AppError("UNAUTHENTICATED", "User not found", 401)

@@ -13,9 +13,9 @@ export function getSocket(): Socket {
   return socket;
 }
 
-export async function connectSocket(roomId: string, token?: string, displayName?: string): Promise<Socket> {
+export async function connectSocket(roomId: string, displayName?: string): Promise<Socket> {
   const s = getSocket();
-  s.auth = { token, roomId, displayName };
+  s.auth = { roomId, displayName };
   if (!s.connected) s.connect();
   return s;
 }

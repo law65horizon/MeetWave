@@ -7,12 +7,13 @@ import {
 import { Login, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { auth } from '../../lib/firebase';
+import useAuthStore from '../../store/authStore';
 
 interface Props { open: boolean; onClose: () => void; }
 
 export default function JoinMeetingDialog({ open, onClose }: Props) {
   const navigate = useNavigate();
+  const user = useAuthStore(state => state.user)
   const [roomId, setRoomId] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -22,27 +23,9 @@ export default function JoinMeetingDialog({ open, onClose }: Props) {
   async function handleJoin() {
     const id = roomId.trim().toLowerCase();
     if (!id) return toast.error('Enter a room code');
-    if (!displayName.trim() && !auth.currentUser) return toast.error('Enter display name');
+    if (!displayName.trim() && !user) return toast.error('Enter display name');
     setLoading(true);
     try {
-      // const token = await auth.currentUser?.getIdToken();
-      // if (!token) return toast.error('Not authenticated');
-      // const socket = connectSocket(token);
-      // await new Promise<void>((res, rej) => {
-      //   socket.once('connect', res);
-      //   socket.once('connect_error', rej);
-      //   setTimeout(() => rej(new Error('timeout')), 8000);
-      // });
-      // // Quick check room exists
-      // socket.emit('room:join', { roomId: id, password: password || undefined }, (res: { error?: string; waiting?: boolean }) => {
-      //   setLoading(false);
-      //   if (res.error === 'ROOM_NOT_FOUND') return toast.error('Room not found');
-      //   if (res.error === 'WRONG_PASSWORD') return toast.error('Wrong password');
-      //   if (res.error === 'ROOM_FULL') return toast.error('Room is full');
-      //   if (res.error) return toast.error(res.error);
-      //   navigate(`/meeting/${id}${password ? `?pw=${encodeURIComponent(password)}` : ''}`);
-      //   onClose();
-      // });
       if (displayName) localStorage.setItem('displayName', displayName)
       console.log('navigating')
       navigate(`/meeting/${id}${password ? `?pw=${encodeURIComponent(password)}` : ''}`);
@@ -83,7 +66,7 @@ export default function JoinMeetingDialog({ open, onClose }: Props) {
               ),
             }}
           />
-          {!auth.currentUser && <TextField
+          {!user && <TextField
             label="Dispaly name" fullWidth size="small"
             type='text'
             value={displayName} onChange={(e) => setDisplayName(e.target.value)}

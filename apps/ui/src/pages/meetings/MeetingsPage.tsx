@@ -19,7 +19,6 @@ import {
 } from '@mui/material';
 import { Video, Calendar, Clock, Users, Link as LinkIcon, Copy, MoreVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchUserMeetings } from '../../lib/firebase';
 import useAuthStore from '../../store/authStore';
 
 interface TabPanelProps {
@@ -50,15 +49,15 @@ const MeetingsPage = () => {
   const theme = useTheme();
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    fetchUserMeetings()
-      .then(({ upcoming, previous }) => {
-        setUpcoming(upcoming);
-        setPrevious(previous);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+  // useEffect(() => {
+  //   fetchUserMeetings()
+  //     .then(({ upcoming, previous }) => {
+  //       setUpcoming(upcoming);
+  //       setPrevious(previous);
+  //     })
+  //     .catch(console.error)
+  //     .finally(() => setLoading(false));
+  // }, []);
 
   const formatTime = (value: any) => {
     const date = value?.toDate ? value.toDate() : new Date(value);

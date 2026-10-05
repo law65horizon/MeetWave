@@ -16,7 +16,7 @@ import {
   Skeleton,
 } from '@mui/material';
 import { Edit, Camera, Save } from 'lucide-react';
-import { auth, db } from '../../lib/firebase';
+// import { auth, db } from '../../lib/firebase';
 import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import useAuthStore from '../../store/authStore';
@@ -33,38 +33,38 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
-  useEffect(() => {
-    if (!user?.id) return;
-    getDoc(doc(db, 'users', user.id))
-      .then((snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setName(data.name || user.name || '');
-          setEmail(data.email || user.email || '');
-          setJobTitle(data.jobTitle || '');
-          setDepartment(data.department || '');
-          setTimezone(data.timezone || '');
-        } else {
-          setName(user.name || '');
-          setEmail(user.email || '');
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [user?.id]);
+  // useEffect(() => {
+  //   if (!user?.id) return;
+  //   getDoc(doc(db, 'users', user.id))
+  //     .then((snap) => {
+  //       if (snap.exists()) {
+  //         const data = snap.data();
+  //         setName(data.name || user.name || '');
+  //         setEmail(data.email || user.email || '');
+  //         setJobTitle(data.jobTitle || '');
+  //         setDepartment(data.department || '');
+  //         setTimezone(data.timezone || '');
+  //       } else {
+  //         setName(user.name || '');
+  //         setEmail(user.email || '');
+  //       }
+  //     })
+  //     .catch(console.error)
+  //     .finally(() => setLoading(false));
+  // }, [user?.id]);
 
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
     try {
-      await setDoc(
-        doc(db, 'users', user.id),
-        { name, email, jobTitle, department, timezone, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: name });
-      }
+      // await setDoc(
+      //   doc(db, 'users', user.id),
+      //   { name, email, jobTitle, department, timezone, updatedAt: serverTimestamp() },
+      //   { merge: true }
+      // );
+      // if (auth.currentUser) {
+      //   await updateProfile(auth.currentUser, { displayName: name });
+      // }
       setUser({ ...user, name, email });
       setEditing(false);
       setSnack({ open: true, message: 'Profile saved!', severity: 'success' });

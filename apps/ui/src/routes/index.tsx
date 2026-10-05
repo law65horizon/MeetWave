@@ -8,7 +8,7 @@ import HomePage from '../pages/home/HomePage';
 import MeetingsPage from '../pages/meetings/MeetingsPage';
 import StartMeetingPage from '../pages/start-meeting/StartMeetingPage';
 import MeetingRoom from '../pages/meeting/MeetingRoom';
-import SettingsPage from '../pages/settings/SettingsPage';
+// import SettingsPage from '../pages/settings/SettingsPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import SupportPage from '../pages/support/SupportPage';
 import { useAuth } from '../hooks/useAuth';
@@ -46,7 +46,7 @@ const router = createBrowserRouter([
           { index: true, element: <HomePage /> },
           { path: 'meetings', element: <MeetingsPage /> },
           { path: 'start-meeting', element: <StartMeetingPage /> },
-          { path: 'settings', element: <SettingsPage /> },
+          // { path: 'settings', element: <SettingsPage /> },
           { path: 'profile', element: <ProfilePage /> },
           // { path: 'support', element: <SupportPage /> },
         ],
