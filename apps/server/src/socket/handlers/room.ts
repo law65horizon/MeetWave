@@ -1,7 +1,6 @@
 import type { Server } from 'socket.io';
 import type { AuthenticatedSocket } from '../../middleware/index';
 import {
-  createRoom,
   getRoom,
   deleteRoom,
   addParticipant,
@@ -11,164 +10,55 @@ import {
   updateRoom,
   addWaitingEntry,
   removeWaitingEntry,
+  isWaiting,
   getWaitingList,
   getChatHistory,
   getProducers,
+  unregisterProducer,
+  markAdmitted,
+  consumeAdmission,
 } from '../../redis/roomRepository';
 import { workerPool } from '../../mediasoup/workerPool';
 import { logger } from '../../lib/logger';
-import type { RoomMeta, RoomMode } from '../../types';
-import os from 'os';
+import type { RoomMeta } from '../../types';
+import { hostRoom, requireHost } from './guards';
 
-const SERVER_ID = os.hostname();
-
-function generateRoomId(): string {
-  const words = ['oak','river','pine','lake','moon','star','mist','dawn','sage','fern','iris','wave'];
-  const a = words[Math.floor(Math.random() * words.length)];
-  const b = words[Math.floor(Math.random() * words.length)];
-  const n = Math.floor(Math.random() * 90) + 10;
-  return `${a}-${b}-${n}`;
+interface JoinResponse {
+  id?: string;
+  error?: string;
+  waiting?: boolean;
+  room?: RoomMeta;
+  participants?: unknown[];
+  chatHistory?: unknown[];
+  producers?: unknown[];
+  rtpCapabilities?: unknown;
 }
+type JoinCb = (res: JoinResponse) => void;
+type AckCb = (res: { error?: string }) => void;
 
 export function registerRoomHandlers(io: Server, socket: AuthenticatedSocket): void {
-  const { id, displayName, roomId } = socket.data;
-  let photoURL = ''
+  // Serialise join attempts per socket. A double emit (StrictMode, retries) can no
+  // longer race past the "already joined" check and double-announce.
+  let joinChain: Promise<void> = Promise.resolve();
 
-  // ─── CREATE ROOM ─────────────────────────────────────────────────────────
-  // socket.on('room:create', async (data: {
-  //   name: string;
-  //   mode?: RoomMode;
-  //   isLocked?: boolean;
-  //   password?: string;
-  //   maxParticipants?: number;
-  // }, cb: (res: { error?: string; roomId?: string }) => void) => {
-  //   try {
-  //     const roomId = generateRoomId();
-  //     const mode: RoomMode = data.mode ?? 'conference';
-
-  //     const meta: RoomMeta = {
-  //       roomId,
-  //       hostId: id,
-  //       hostName: displayName,
-  //       name: data.name || `${displayName}'s Room`,
-  //       mode,
-  //       isLocked: data.isLocked ? 'true' : 'false' as any,
-  //       password: data.password ?? '',
-  //       maxParticipants: data.maxParticipants ?? 50,
-  //       createdAt: Date.now(),
-  //       serverId: SERVER_ID,
-  //     };
-
-  //     console.log({meta})
-
-  //     await createRoom(meta);
-  //     console.log('worked')
-  //     await workerPool.getOrCreateRouter(roomId);
-  //     logger.info({ roomId, id, mode }, 'Room created');
-  //     cb({ roomId });
-  //   } catch (err) {
-  //     logger.error({ err }, 'room:create error');
-  //     cb({ error: 'Failed to create room' });
-  //   }
-  // });
-
-  // ─── JOIN ROOM ────────────────────────────────────────────────────────────
-  socket.on('room:join', async (data: {
-    roomId: string;
-    password?: string;
-    displayName?: string;
-  }, cb: (res: {
-    id?: string;
-    error?: string;
-    waiting?: boolean;
-    room?: RoomMeta;
-    participants?: unknown[];
-    chatHistory?: unknown[];
-    producers?: unknown[];
-    rtpCapabilities?: unknown;
-  }) => void) => {
-    try {
-      const roomId = data.roomId.toLowerCase().trim();
-      console.log({data: data.displayName})
-      const room = await getRoom(roomId);
-
-      if (!room) return cb({ error: 'ROOM_NOT_FOUND' });
-
-      const count = await getParticipantCount(roomId);
-      if (count >= room.maxParticipants) return cb({ error: 'ROOM_FULL' });
-
-      // Password check
-      if (room.password && data.password !== room.password) {
-        return cb({ error: 'WRONG_PASSWORD' });
-      }
-
-      // Override display name if provided
-      if (data.displayName) {
-        socket.data.displayName = data.displayName;
-      }
-
-      const isHost = id === room.hostId;
-
-      // Waiting room logic
-      if (room.isLocked && !isHost) {
-        await addWaitingEntry(roomId, {
-          socketId: socket.id,
-          userId: id,
-          displayName: socket.data.displayName,
-          photoURL,
-          requestedAt: Date.now(),
-        });
-
-        socket.data.roomId = roomId;
-        socket.join(`waiting:${roomId}`);
-
-        // Notify host
-        io.to(roomId).emit('waiting:request', {
-          socketId: socket.id,
-          userId: id,
-          displayName: socket.data.displayName,
-          photoURL,
-        });
-
-        logger.info({ roomId, id }, 'Added to waiting room');
-        return cb({ waiting: true });
-      }
-
-      await _joinRoom(io, socket, room, isHost);
-
-      const router = workerPool.getOrCreateRouter(roomId);
-      const [participants, chatHistory, producers] = await Promise.all([
-        getParticipants(roomId),
-        getChatHistory(roomId),
-        getProducers(roomId),
-      ]);
-
-      console.log({id: socket.data.id})
-      cb({
-        id: socket.data.id,
-        room,
-        participants,
-        chatHistory,
-        producers,
-        rtpCapabilities: (await router).rtpCapabilities,
-      });
-    } catch (err) {
-      logger.error({ err }, 'room:join error');
-      cb({ error: 'Failed to join room' });
-    }
+  socket.on('room:join', (data: { password?: string } | undefined, cb: JoinCb) => {
+    if (typeof cb !== 'function') return;
+    joinChain = joinChain.then(() => handleJoin(io, socket, data ?? {}, cb));
   });
 
-  // ─── ADMIT FROM WAITING ───────────────────────────────────────────────────
-  socket.on('waiting:admit', async (data: { socketId: string }, cb: (res: { error?: string }) => void) => {
+  // ─── ADMIT / DENY ─────────────────────────────────────────────────────────
+  socket.on('waiting:admit', async (data: { socketId: string }, cb: AckCb) => {
     try {
-      const roomId = socket.data.roomId;
-      if (!roomId) return cb({ error: 'NOT_IN_ROOM' });
+      const guard = await requireHost(socket);
+      if (!guard.ok) return cb({ error: guard.error });
 
-      const room = await getRoom(roomId);
-      if (!room || room.hostId !== id) return cb({ error: 'NOT_HOST' });
+      // Atomic: only one admit/deny can ever succeed for a given waiting socket.
+      const removed = await removeWaitingEntry(guard.roomId, data.socketId);
+      if (!removed) return cb({ error: 'NOT_WAITING' });
 
-      await removeWaitingEntry(roomId, data.socketId);
+      await markAdmitted(guard.roomId, data.socketId); // BEFORE notifying the guest
       io.to(data.socketId).emit('waiting:admitted');
+      io.to(hostRoom(guard.roomId)).emit('waiting:removed', { socketId: data.socketId });
       cb({});
     } catch (err) {
       logger.error({ err }, 'waiting:admit error');
@@ -176,16 +66,16 @@ export function registerRoomHandlers(io: Server, socket: AuthenticatedSocket): v
     }
   });
 
-  socket.on('waiting:deny', async (data: { socketId: string }, cb: (res: { error?: string }) => void) => {
+  socket.on('waiting:deny', async (data: { socketId: string }, cb: AckCb) => {
     try {
-      const roomId = socket.data.roomId;
-      if (!roomId) return cb({ error: 'NOT_IN_ROOM' });
+      const guard = await requireHost(socket);
+      if (!guard.ok) return cb({ error: guard.error });
 
-      const room = await getRoom(roomId);
-      if (!room || room.hostId !== id) return cb({ error: 'NOT_HOST' });
+      const removed = await removeWaitingEntry(guard.roomId, data.socketId);
+      if (!removed) return cb({ error: 'NOT_WAITING' });
 
-      await removeWaitingEntry(roomId, data.socketId);
       io.to(data.socketId).emit('waiting:denied');
+      io.to(hostRoom(guard.roomId)).emit('waiting:removed', { socketId: data.socketId });
       cb({});
     } catch (err) {
       logger.error({ err }, 'waiting:deny error');
@@ -193,101 +83,173 @@ export function registerRoomHandlers(io: Server, socket: AuthenticatedSocket): v
     }
   });
 
-  // ─── LOCK / UNLOCK ROOM ───────────────────────────────────────────────────
-  socket.on('room:lock', async (data: { locked: boolean }, cb: (res: { error?: string }) => void) => {
-    try {
-      const roomId = socket.data.roomId;
-      if (!roomId) return cb({ error: 'NOT_IN_ROOM' });
-      const room = await getRoom(roomId);
-      if (!room || room.hostId !== id) return cb({ error: 'NOT_HOST' });
+  socket.on('waiting:list', async (cb: (list: unknown[]) => void) => {
+    if (typeof cb !== 'function') return;
+    const guard = await requireHost(socket);
+    if (!guard.ok) return cb([]);
+    cb(await getWaitingList(guard.roomId));
+  });
 
-      await updateRoom(roomId, { isLocked: data.locked });
-      io.to(roomId).emit('room:locked', { locked: data.locked, by: displayName });
+  // ─── LOCK / UNLOCK ────────────────────────────────────────────────────────
+  socket.on('room:lock', async (data: { locked: boolean }, cb: AckCb) => {
+    try {
+      const guard = await requireHost(socket);
+      if (!guard.ok) return cb({ error: guard.error });
+
+      await updateRoom(guard.roomId, { isLocked: Boolean(data.locked) });
+      io.to(guard.roomId).emit('room:locked', { locked: Boolean(data.locked), by: socket.data.displayName });
       cb({});
     } catch (err) {
+      logger.error({ err }, 'room:lock error');
       cb({ error: 'Failed' });
     }
   });
 
-  // ─── LEAVE ROOM ───────────────────────────────────────────────────────────
+  // ─── LEAVE ────────────────────────────────────────────────────────────────
   socket.on('room:leave', async () => {
     await handleLeave(io, socket);
   });
 
-  // ─── END ROOM (host only) ─────────────────────────────────────────────────
-  socket.on('room:end', async (cb: (res: { error?: string }) => void) => {
+  // ─── END ROOM (host) ──────────────────────────────────────────────────────
+  socket.on('room:end', async (cb: AckCb) => {
     try {
-      const roomId = socket.data.roomId;
-      if (!roomId) return cb({ error: 'NOT_IN_ROOM' });
-      const room = await getRoom(roomId);
-      if (!room || room.hostId !== id) return cb({ error: 'NOT_HOST' });
+      const guard = await requireHost(socket);
+      if (!guard.ok) return cb?.({ error: guard.error });
+      const { roomId } = guard;
 
-      io.to(roomId).emit('room:ended', { by: displayName });
-      // Disconnect all in room
-      const sockets = await io.in(roomId).fetchSockets();
-      for (const s of sockets) {
-        s.leave(roomId);
-        s.disconnect(true);
-      }
+      const [members, waiting] = await Promise.all([io.in(roomId).fetchSockets(), getWaitingList(roomId)]);
 
+      // Delete FIRST so the disconnect handlers below find no participant record
+      // and therefore don't broadcast a "X left" for every person after the end.
       await deleteRoom(roomId);
       workerPool.closeRouter(roomId);
+
+      cb?.({}); // ack before we disconnect the host's own socket
+
+      io.to(roomId).emit('room:ended', { by: socket.data.displayName });
+      for (const w of waiting) io.to(w.socketId).emit('room:ended', { by: socket.data.displayName });
+      for (const s of members) s.disconnect(true);
       logger.info({ roomId }, 'Room ended by host');
-      cb({});
     } catch (err) {
       logger.error({ err }, 'room:end error');
-      cb({ error: 'Failed' });
+      cb?.({ error: 'Failed' });
     }
   });
 
-  // ─── HOST KICK ────────────────────────────────────────────────────────────
-  socket.on('host:kick', async (data: { socketId: string }, cb: (res: { error?: string }) => void) => {
+  // ─── KICK ─────────────────────────────────────────────────────────────────
+  socket.on('host:kick', async (data: { socketId: string }, cb: AckCb) => {
     try {
-      const roomId = socket.data.roomId;
-      if (!roomId) return cb({ error: 'NOT_IN_ROOM' });
-      const room = await getRoom(roomId);
-      if (!room || room.hostId !== id) return cb({ error: 'NOT_HOST' });
+      const guard = await requireHost(socket);
+      if (!guard.ok) return cb?.({ error: guard.error });
+      if (data.socketId === socket.id) return cb?.({ error: 'CANNOT_KICK_SELF' });
+
+      // Only sockets that are actually in THIS room can be kicked.
+      const [target] = await io.in(data.socketId).fetchSockets();
+      if (!target || target.data?.roomId !== guard.roomId) return cb?.({ error: 'NOT_IN_ROOM' });
 
       io.to(data.socketId).emit('room:kicked');
-      const targetSocket = await io.in(data.socketId).fetchSockets();
-      if (targetSocket[0]) targetSocket[0].disconnect(true);
-      cb({});
+      target.disconnect(true); // disconnect handler announces "left" exactly once
+      cb?.({});
     } catch (err) {
-      cb({ error: 'Failed' });
+      logger.error({ err }, 'host:kick error');
+      cb?.({ error: 'Failed' });
     }
-  });
-
-  // ─── WAITING LIST (for host) ──────────────────────────────────────────────
-  socket.on('waiting:list', async (cb: (list: unknown[]) => void) => {
-    const roomId = socket.data.roomId;
-    if (!roomId) return cb([]);
-    const list = await getWaitingList(roomId);
-    cb(list);
   });
 }
 
-async function _joinRoom(
-  io: Server,
-  socket: AuthenticatedSocket,
-  room: RoomMeta,
-  isHost: boolean,
-): Promise<void> {
+// ─── JOIN ───────────────────────────────────────────────────────────────────
+async function handleJoin(io: Server, socket: AuthenticatedSocket, data: { password?: string }, cb: JoinCb) {
+  try {
+    // The room is fixed by the authenticated handshake. Trusting a roomId from the
+    // payload would let a socket authorised for a public room join a private one.
+    const roomId = socket.data.requestedRoomId;
+    const { id } = socket.data;
+
+    const room = await getRoom(roomId);
+    if (!room) return cb({ error: 'ROOM_NOT_FOUND' });
+
+    const isHost = id === room.hostId;
+
+    if (socket.data.roomId !== roomId) {
+      const admitted = await consumeAdmission(roomId, socket.id);
+
+      if (!admitted) {
+        if (room.password && data.password !== room.password) return cb({ error: 'WRONG_PASSWORD' });
+        if (room.isLocked && !isHost) return await enqueueWaiting(io, socket, roomId, cb);
+      }
+
+      await evictStaleSessions(io, socket, roomId);
+
+      if ((await getParticipantCount(roomId)) >= room.maxParticipants) return cb({ error: 'ROOM_FULL' });
+
+      await joinRoom(io, socket, room, isHost);
+    }
+    // else: duplicate join emit from an already-joined socket -> just return state, no re-broadcast.
+
+    socket.data.waitingRoomId = undefined;
+
+    const [participants, chatHistory, producers, router] = await Promise.all([
+      getParticipants(roomId),
+      getChatHistory(roomId),
+      getProducers(roomId),
+      workerPool.getOrCreateRouter(roomId),
+    ]);
+
+    cb({ id, room, participants, chatHistory, producers, rtpCapabilities: router.rtpCapabilities });
+  } catch (err) {
+    logger.error({ err }, 'room:join error');
+    cb({ error: 'Failed to join room' });
+  }
+}
+
+async function enqueueWaiting(io: Server, socket: AuthenticatedSocket, roomId: string, cb: JoinCb) {
+  // Idempotent: a repeat join while already queued must not re-notify the host.
+  if (!(await isWaiting(roomId, socket.id))) {
+    const entry = {
+      socketId: socket.id,
+      userId: socket.data.id,
+      displayName: socket.data.displayName,
+      photoURL: '',
+      requestedAt: Date.now(),
+    };
+    await addWaitingEntry(roomId, entry);
+    socket.data.waitingRoomId = roomId; // NOT roomId: a waiting socket must not count as "in the room"
+    io.to(hostRoom(roomId)).emit('waiting:request', entry); // host only, not the whole room
+    logger.info({ roomId, id: socket.data.id }, 'Added to waiting room');
+  }
+  cb({ waiting: true, id: socket.data.id });
+}
+
+/**
+ * Same account re-joining (page refresh, second tab) while the old socket is still
+ * alive until pingTimeout. Replace the old session so the room never shows the
+ * same person twice.
+ */
+async function evictStaleSessions(io: Server, socket: AuthenticatedSocket, roomId: string) {
+  const { id } = socket.data;
+  for (const p of await getParticipants(roomId)) {
+    if (p.userId !== id || p.socketId === socket.id) continue;
+    const removed = await removeParticipant(roomId, p.socketId, p.userId);
+    if (!removed) continue;
+    io.to(p.socketId).emit('room:replaced');
+    io.to(roomId).emit('participant:left', { socketId: p.socketId, userId: p.userId, displayName: p.displayName });
+    io.in(p.socketId).disconnectSockets(true);
+  }
+}
+
+async function joinRoom(io: Server, socket: AuthenticatedSocket, room: RoomMeta, isHost: boolean) {
   const { id, displayName } = socket.data;
-  let photoURL = ''
   const roomId = room.roomId;
 
   let role: 'host' | 'broadcaster' | 'viewer' | 'participant';
-  if (isHost) {
-    role = room.mode === 'broadcast' ? 'broadcaster' : 'host';
-  } else {
-    role = room.mode === 'broadcast' ? 'viewer' : 'participant';
-  }
+  if (isHost) role = room.mode === 'broadcast' ? 'broadcaster' : 'host';
+  else role = room.mode === 'broadcast' ? 'viewer' : 'participant';
 
   const participantMeta = {
     socketId: socket.id,
     userId: id,
     displayName,
-    photoURL,
+    photoURL: '',
     roomId,
     isHost,
     role,
@@ -297,29 +259,53 @@ async function _joinRoom(
 
   await addParticipant(participantMeta);
   socket.data.roomId = roomId;
-  socket.join(roomId);
+  await socket.join(roomId);
+  if (isHost) await socket.join(hostRoom(roomId));
 
-  // Notify existing participants
   socket.to(roomId).emit('participant:joined', participantMeta);
   logger.info({ roomId, id, role }, 'Participant joined');
 }
 
+// ─── LEAVE (single, idempotent exit path for room:leave AND disconnect) ──────
 export async function handleLeave(io: Server, socket: AuthenticatedSocket): Promise<void> {
+  const { id } = socket.data;
+
+  // 1. Waiting-queue cleanup, so the host never sees ghost entries.
+  const waitingRoomId = socket.data.waitingRoomId;
+  if (waitingRoomId) {
+    socket.data.waitingRoomId = undefined;
+    await removeWaitingEntry(waitingRoomId, socket.id);
+    io.to(hostRoom(waitingRoomId)).emit('waiting:removed', { socketId: socket.id });
+  }
+
+  // 2. Claim the roomId SYNCHRONOUSLY, before any await. Two concurrent calls
+  //    (room:leave + disconnect) can no longer both pass this check.
   const roomId = socket.data.roomId;
   if (!roomId) return;
-
-  const { id, displayName } = socket.data;
-
-  console.log({dios: socket.data})
-  await removeParticipant(roomId, socket.id, id);
-  socket.leave(roomId);
   socket.data.roomId = undefined;
 
-  io.to(roomId).emit('participant:left', { socketId: socket.id, userId: id, displayName });
+  await socket.leave(roomId);
+  await socket.leave(hostRoom(roomId));
 
-  const remaining = await getParticipantCount(roomId);
-  if (remaining === 0) {
-    // Room is empty — let Redis TTL clean it up
+  // 3. Producer registry cleanup (must happen even on a clean room:leave).
+  const producers = await getProducers(roomId);
+  await Promise.all(
+    producers
+      .filter((p) => p.socketId === socket.id)
+      .map((p) => unregisterProducer(roomId, String(p.producerId))),
+  );
+
+  // 4. Only the call that actually deleted the record announces the departure.
+  const removed = await removeParticipant(roomId, socket.id, id);
+  if (!removed) return;
+
+  io.to(roomId).emit('participant:left', {
+    socketId: socket.id,
+    userId: id,
+    displayName: removed.displayName || socket.data.displayName,
+  });
+
+  if ((await getParticipantCount(roomId)) === 0) {
     logger.info({ roomId }, 'Room empty, will expire via TTL');
     workerPool.closeRouter(roomId);
   }

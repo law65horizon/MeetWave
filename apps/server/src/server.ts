@@ -71,7 +71,7 @@ async function bootstrap() {
       generateRoomId();
 
       if (!user) {
-        throw new AppError("UNAUTHENTICATED", "User not found", 401)
+        throw new AppError("UNAUTHENTICATED", "User not found", 404)
       }
     
       console.log('creating')
@@ -101,6 +101,47 @@ async function bootstrap() {
     }
   })
 
+
+  app.post('/demo/create', async (req: AppRequest, res) => {
+    const {name, mode, isLocked, password, maxParticipants, displayName} = req.body
+
+    try {
+      const userId = randomUUID()
+      // const user = await findUserById(userId)
+      const roomId = generateRoomId()
+      generateRoomId();
+
+      if (!displayName) {
+        throw new AppError("FORBIDDEN", "No User Name", 403)
+      }
+    
+      console.log('creating')
+      const meta = {
+        roomId,
+        hostId: userId,
+        hostName: displayName,
+        name: name || `${displayName}'s Room`,
+        mode,
+        isLocked: isLocked ? 'true' : 'false' as any,
+        password: password ?? '',
+        maxParticipants: maxParticipants ?? 50,
+        createdAt: Date.now(),
+        serverId: SERVER_ID,
+      };
+    
+      console.log({meta})
+    
+      await createRoom(meta);
+      console.log('created')
+      logger.info({ roomId, id: userId, mode }, 'Room created');
+      res.status(201).json({
+        userId,
+        roomId
+      })
+    } catch (err) {
+      res.status(500).json("Internal Server Error")
+    }
+  })
   // routes
   app.use("/auth", authRouter)
 

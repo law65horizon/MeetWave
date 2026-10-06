@@ -38,12 +38,21 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
   }
   return <>{children}</>;
 }
-
 export default function App() {
   const initAuth = useAuthStore((s) => s.initAuth);
+  const loading = useAuthStore((s) => s.loading);
+
   useEffect(() => {
-    initAuth();
+    void initAuth();
   }, [initAuth]);
+
+  if (loading) {
+    return (
+      <Box sx={{ height: '100dvh', display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <BrowserRouter>

@@ -13,7 +13,7 @@ import { apiFetch } from '../../lib/api';
 
 interface Props { open: boolean; onClose: () => void; }
 
-export default function CreateMeetingDialog({ open, onClose }: Props) {
+export default function CreateDemoDialog({ open, onClose }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [mode, setMode] = useState<RoomMode>('conference');
@@ -22,37 +22,44 @@ export default function CreateMeetingDialog({ open, onClose }: Props) {
   const [showPw, setShowPw] = useState(false);
   const [maxP, setMaxP] = useState(50);
   const [loading, setLoading] = useState(false);
+  const [displayName, setDisplayName] = useState('')
 
   async function handleCreate() {
     setLoading(true);
     try {
-      const result = await apiFetch<{roomId: string}>(`/create`, {
+      if (!displayName) return toast.error('Enter a user name');
+      const result = await apiFetch<{roomId: string, userId: string}>(`/demo/create`, {
         method: 'POST',
         body: {
           name: name.trim(),
           mode,
           isLocked: locked,
           password: locked && password ? password : undefined,
-          maxParticipants: maxP
+          maxParticipants: maxP,
+          displayName
         }, 
       })
 
       // if (!response.ok)  throw new Error(`HTTP error! status: ${response.status}`);
 
+      sessionStorage.setItem('demoUser', result.userId)
       // const result = await response.json()
       navigate(`/meeting/${result.roomId}`);
       onClose();
 
-    } catch {
-      setLoading(false);
+    } catch (error) {
+        console.log(error)
       toast.error('Failed to connect to server');
+    } finally {
+        console.log('iosiso')
+        setLoading(false)
     }
   }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ fontFamily: '"Sora", sans-serif', fontWeight: 700, pb: 1 }}>
-        New meeting
+        Demo meeting
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ pt: 1 }}>
@@ -60,6 +67,13 @@ export default function CreateMeetingDialog({ open, onClose }: Props) {
             label="Room name" fullWidth size="small"
             placeholder="My awesome meeting"
             value={name} onChange={(e) => setName(e.target.value)}
+          />
+
+          <TextField
+            label="Display name" fullWidth size="small"
+            placeholder="James"
+            required
+            value={displayName} onChange={(e) => setDisplayName(e.target.value)}
           />
 
           <Stack spacing={1}>

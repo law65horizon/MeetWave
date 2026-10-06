@@ -77,11 +77,18 @@ function Root() {
   );
 }
 
+// ReactDOM.createRoot(document.getElementById('root')!).render(
+//   <React.StrictMode>
+//     <Root />
+//   </React.StrictMode>,
+// );
+
+// ... keep all your imports, context, and Root component code exactly the same ...
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Root />
-  </React.StrictMode>,
+  <Root />
 );
+
 
 // import React from 'react';
 // import ReactDOM from 'react-dom/client';

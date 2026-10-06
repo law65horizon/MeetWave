@@ -82,6 +82,7 @@ export async function apiFetch<T = unknown>(path: string, options: Options = {},
   if (res.status === 204) return undefined as T;
 
   const data = await res.json().catch(() => null);
+  console.log({data})
   if (!res.ok) {
     throw new ApiError(res.status, data?.error ?? res.statusText, data?.code, data?.details);
   }

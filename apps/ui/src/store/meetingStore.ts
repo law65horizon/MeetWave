@@ -125,7 +125,6 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
   reset: () => set({ ...initialState, remoteStreams: new Map(), typingUsers: new Map() }),
 }));
 
-// import { create } from 'zustand';
 // import type { Participant, ChatMessage, RoomMeta, WaitingEntry, ReactionEvent, LayoutMode } from '../types';
 
 // interface MeetingState {

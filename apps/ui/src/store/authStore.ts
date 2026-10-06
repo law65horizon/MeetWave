@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (loading) => set({ loading }),
 
   // Runs once on app start: /me, falling back to /refresh if the access token expired.
-  initAuth: () =>
+  initAuth: async () =>
     (initPromise ??= (async () => {
       let user: AuthUser | null = null;
       try {
@@ -44,7 +44,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         // if (res.ok) user = (await res.json()).user;
         // else if (res.status === 401 && await refreshSession()) user = await apiFetch<any>('/auth/me');
         user = res.user
-      } catch {
+        console.log({res})
+      } catch (err) {
+        console.log(err)
         user = null; // network error: treat as logged out
       }
       set({ user, isAuthenticated: user !== null, loading: false });

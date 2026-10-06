@@ -8,6 +8,7 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   server: {
+    allowedHosts: ['.ngrok-free.app'],
     port: 5173,
     proxy: {
       '/socket.io': {

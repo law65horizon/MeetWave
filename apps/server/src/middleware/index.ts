@@ -1,32 +1,36 @@
 import { NextFunction, Request, Response } from "express";
+import { randomUUID } from "node:crypto";
+import { Socket } from "socket.io";
+import cookieParser from "cookie-parser";
 import { verifyAccessToken } from "./authenticate";
 import { AppRequest } from "../types";
-import { Socket } from "socket.io";
 import { getRoom } from "../redis/roomRepository";
 import { logger } from "../lib/logger";
-import { AppError } from "../lib/error";
 import { ACCESS_COOKIE } from "./cookies";
-import cookieParser from "cookie-parser";
-
+// ADJUST PATH if your auth controller lives elsewhere.
+import { findUserById } from "../routes/auth/authController";
 
 export interface AuthenticatedSocket extends Socket {
   data: {
     id: string;
-    roomId?: string
-    displayName: string
+    displayName: string;
+    /** Room the handshake was authorised for. The ONLY room this socket may join. */
+    requestedRoomId: string;
+    /** Set only after a real join. Never set while waiting. */
+    roomId?: string;
+    /** Set while sitting in the waiting queue. */
+    waitingRoomId?: string;
   };
 }
-
 
 export function requireAuth(req: AppRequest, res: Response, next: NextFunction) {
   const token = extractToken(req);
   if (!token) {
-    // Note: the browser deletes the access cookie when its maxAge passes, so an
-    // expired session usually arrives here as "no token", not as "expired token".
-    // The client therefore refreshes on ANY 401.
+    // The browser deletes the access cookie when its maxAge passes, so an expired
+    // session usually arrives as "no token". The client refreshes on ANY 401.
     return res.status(401).json({ error: "Not authenticated", code: "NO_TOKEN" });
   }
- 
+
   try {
     req.userId = verifyAccessToken(token).sub;
     next();
@@ -38,62 +42,65 @@ export function requireAuth(req: AppRequest, res: Response, next: NextFunction) 
     });
   }
 }
- 
-const parseCookies = cookieParser()
+
+const parseCookies = cookieParser();
+
+function resolveDisplayName(provided: unknown, accountName: string | undefined, id: string): string {
+  const clean = typeof provided === "string" ? provided.trim().slice(0, 50) : "";
+  return clean || accountName?.trim() || `Guest-${id.slice(0, 4)}`;
+}
+
+/**
+ * Errors are plain Error(code) so the client reads `err.message`:
+ * NOT_IN_ROOM | UNAUTHENTICATED | TOKEN_EXPIRED | TOKEN_INVALID | INTERNAL_SERVER_ERROR
+ */
 export async function socketMiddleware(socket: Socket, next: (err?: Error) => void): Promise<void> {
-//   const token = socket.handshake.auth?.token as string | undefined;
   try {
-    const roomId = socket.handshake.auth?.roomId as string | undefined;
-    const displayName = socket.handshake.auth?.displayName as string | undefined;
-   
+    const rawRoomId = socket.handshake.auth?.roomId;
+    const demoUserId = socket.handshake.auth?.demoUserId;
+    if (typeof rawRoomId !== "string" || !rawRoomId.trim()) throw new Error("NOT_IN_ROOM");
+    const roomId = rawRoomId.toLowerCase().trim();
+
     await new Promise<void>((resolve) => {
       parseCookies(socket.request as any, {} as any, () => resolve());
     });
-  
-    const reqWithCookies = socket.request as any;
-    const token = reqWithCookies.cookies?.access_token as string | undefined;
-    console.log({roomId, token, displayName})
-    if (!roomId) {
-      throw new AppError('Forbidden', 'NOT_IN_ROOM')
-    }
-    const meta = await getRoom(roomId)
-    // console.log({meta})
-  
-    if (meta?.private) {
-        if (!token) {
-         throw new AppError('UNAUTHENTICATED', 'Unauthenticated', 401)
-       }
-      const verify = verifyAccessToken(token)
-          socket.data.id = verify.sub;
-          next()
-    } else {
-      if (token) {
-      const verify = verifyAccessToken(token)
-          socket.data.id = verify.sub;
-          socket.data.displayName = displayName
-          next()
-      } else {
-        const uid = crypto.randomUUID()
-        socket.data.id = uid
-        socket.data.displayName = displayName
-        next()
+    const token = (socket.request as any).cookies?.[ACCESS_COOKIE] as string | undefined;
+
+    let userId: string | undefined;
+    if (token) {
+      try {
+        userId = verifyAccessToken(token).sub;
+      } catch (err) {
+        // Don't silently downgrade a logged-in user to a guest (they would lose host rights).
+        // The client should refresh the session and reconnect on TOKEN_EXPIRED.
+        throw new Error((err as Error).name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "TOKEN_INVALID");
       }
     }
+
+    const room = await getRoom(roomId); // may be null: room:join answers ROOM_NOT_FOUND
+    if (room?.private && !userId) throw new Error("UNAUTHENTICATED");
+
+    // Look the account name up server-side so we never depend on the client having
+    // hydrated its auth store before connecting.
+    const accountName = userId ? (await findUserById(userId))?.name : undefined;
+
+    const id = userId ?? demoUserId?? randomUUID();
+    const data = socket.data as AuthenticatedSocket["data"];
+    data.id = id;
+    data.requestedRoomId = roomId;
+    data.displayName = resolveDisplayName(socket.handshake.auth?.displayName, accountName, id);
+
+    next();
   } catch (error: any) {
-    logger.warn({ err: error?.message ?? '' }, 'Token verification failed');
-    if (error instanceof AppError) {
-        return next(new Error(`${error.code}: ${error.message}`))
-    }
-    next(new Error('INTERNAL_SERVER_ERROR'))
+    logger.warn({ err: error?.message ?? "" }, "Socket auth failed");
+    const known = ["NOT_IN_ROOM", "UNAUTHENTICATED", "TOKEN_EXPIRED", "TOKEN_INVALID"];
+    next(new Error(known.includes(error?.message) ? error.message : "INTERNAL_SERVER_ERROR"));
   }
 }
 
 function extractToken(req: Request): string | undefined {
-  // Browser clients send the httpOnly cookie automatically.
   const fromCookie = req.cookies?.[ACCESS_COOKIE];
   if (fromCookie) return fromCookie;
- 
-  // Non-browser clients (e.g. your React Native app) can still use a bearer header.
   const header = req.headers.authorization;
   return header?.startsWith("Bearer ") ? header.slice(7) : undefined;
 }

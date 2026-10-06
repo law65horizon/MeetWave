@@ -18,7 +18,7 @@ export function useMediasoup(socketRef: React.MutableRefObject<Socket | null>) {
     const device = new mediasoupClient.Device();
     await device.load({ routerRtpCapabilities: rtpCapabilities });
     deviceRef.current = device;
-    rtpCapabilitiesRef.current = rtpCapabilities;
+    rtpCapabilitiesRef.current = device.recvRtpCapabilities;
     return device;
   }, []);
 

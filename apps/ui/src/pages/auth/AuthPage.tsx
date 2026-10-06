@@ -3,12 +3,13 @@ import {
   Box, Typography, TextField, Button, Divider, IconButton,
   InputAdornment, CircularProgress, Stack,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { VideoCall, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { login, register } from '../../lib/authApi';
 import { errorMessage } from '../../lib/api';
 import JoinMeetingDialog from '../../components/dialogs/JoinMeetingDialog';
+import CreateDemoDialog from '../../components/dialogs/CreateDemoDialog';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ export default function AuthPage() {
   const [name, setName] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+
   const [joinOpen,   setJoinOpen]   = useState(false);
 
   async function handleEmail() {
@@ -64,7 +67,16 @@ export default function AuthPage() {
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
         backgroundSize: '60px 60px',
       }} />
-
+      <Button
+        variant="outlined"
+        size="large"
+        startIcon={<VideoCall />}
+        onClick={() => setCreateOpen(true)}
+        sx={{ px: 4, py: 1.6, fontSize: '1rem' }}
+        style={{position: 'absolute', top: 10, right: 10}}
+      >
+        Try a demo
+      </Button>
       <Box sx={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
         {/* Logo */}
         <Stack alignItems="center" mb={4}>
@@ -173,6 +185,7 @@ export default function AuthPage() {
           By continuing you agree to our Terms of Service
         </Typography>
       </Box>
+      <CreateDemoDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       <JoinMeetingDialog   open={joinOpen}   onClose={() => setJoinOpen(false)} />
     </Box>
