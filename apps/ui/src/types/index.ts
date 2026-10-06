@@ -1,4 +1,4 @@
-export type RoomMode = 'conference' | 'broadcast';
+export type RoomMode = "conference" | "broadcast";
 
 export interface RoomMeta {
   roomId: string;
@@ -20,7 +20,7 @@ export interface ParticipantMeta {
   photoURL: string | null;
   roomId: string;
   isHost: boolean;
-  role: 'host' | 'broadcaster' | 'viewer' | 'participant';
+  role: "host" | "broadcaster" | "viewer" | "participant";
   joinedAt: number;
   lastSeen: number;
 }
@@ -48,7 +48,7 @@ export interface ProducerInfo {
   socketId: string;
   userId: string;
   displayName: string;
-  kind: 'audio' | 'video';
+  kind: "audio" | "video";
   paused: boolean;
   isScreenShare: boolean;
 }
@@ -62,7 +62,7 @@ export interface RemoteStream {
   audioStream: MediaStream | null;
   screenStream: MediaStream | null;
   audioLevel: number;
-  role: ParticipantMeta['role'];
+  role: ParticipantMeta["role"];
   isHost: boolean;
 }
 

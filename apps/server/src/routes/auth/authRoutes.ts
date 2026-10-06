@@ -1,7 +1,12 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { createUser, EmailTakenError, findUserByEmail, findUserById } from "./authController";
+import {
+  createUser,
+  EmailTakenError,
+  findUserByEmail,
+  findUserById,
+} from "./authController";
 import {
   InvalidRefreshTokenError,
   issueTokenPair,
@@ -10,7 +15,11 @@ import {
   rotateRefreshToken,
 } from "../../middleware/authenticate";
 import { requireAuth } from "../../middleware/index";
-import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "../../middleware/cookies";
+import {
+  REFRESH_COOKIE,
+  clearAuthCookies,
+  setAuthCookies,
+} from "../../middleware/cookies";
 import { AppRequest } from "../../types";
 
 export const authRouter: Router = Router();
@@ -44,7 +53,12 @@ authRouter.post("/register", async (req, res, next) => {
   try {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten().fieldErrors });
+      return res
+        .status(400)
+        .json({
+          error: "Invalid input",
+          details: parsed.error.flatten().fieldErrors,
+        });
     }
     const { name, email, password } = parsed.data;
 
@@ -64,7 +78,8 @@ authRouter.post("/register", async (req, res, next) => {
 authRouter.post("/login", async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+    if (!parsed.success)
+      return res.status(400).json({ error: "Invalid input" });
     const { email, password } = parsed.data;
 
     const user = await findUserByEmail(email);

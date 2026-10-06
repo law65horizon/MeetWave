@@ -1,15 +1,28 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Box, CircularProgress } from '@mui/material';
-import { useAuthStore } from './store/authStore';
-import AuthPage from './pages/auth/AuthPage';
-import HomePage from './pages/home/HomePage';
-import MeetingRoom from './pages/meeting/MeetingRoom';
+import { useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { Box, CircularProgress } from "@mui/material";
+import { useAuthStore } from "./store/authStore";
+import AuthPage from "./pages/auth/AuthPage";
+import HomePage from "./pages/home/HomePage";
+import MeetingRoom from "./pages/meeting/MeetingRoom";
 
 function FullScreenSpinner() {
   return (
-    <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <CircularProgress sx={{ color: '#6366F1' }} />
+    <Box
+      sx={{
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <CircularProgress sx={{ color: "#6366F1" }} />
     </Box>
   );
 }
@@ -33,8 +46,15 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) return <FullScreenSpinner />;
   if (user) {
-    const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
-    return <Navigate to={from ? `${from.pathname}${from.search ?? ''}` : '/'} replace />;
+    const from = (
+      location.state as { from?: { pathname: string; search?: string } } | null
+    )?.from;
+    return (
+      <Navigate
+        to={from ? `${from.pathname}${from.search ?? ""}` : "/"}
+        replace
+      />
+    );
   }
   return <>{children}</>;
 }
@@ -48,7 +68,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <Box sx={{ height: '100dvh', display: 'grid', placeItems: 'center' }}>
+      <Box sx={{ height: "100dvh", display: "grid", placeItems: "center" }}>
         <CircularProgress />
       </Box>
     );
@@ -57,8 +77,22 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/auth" element={<GuestGuard><AuthPage /></GuestGuard>} />
-        <Route path="/" element={<AuthGuard><HomePage /></AuthGuard>} />
+        <Route
+          path="/auth"
+          element={
+            <GuestGuard>
+              <AuthPage />
+            </GuestGuard>
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <AuthGuard>
+              <HomePage />
+            </AuthGuard>
+          }
+        />
         <Route path="/meeting/:roomId" element={<MeetingRoom />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

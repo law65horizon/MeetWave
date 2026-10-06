@@ -1,25 +1,34 @@
-import { apiFetch } from './api';
-import useAuthStore, { type AuthUser } from '../store/authStore';
+import { apiFetch } from "./api";
+import useAuthStore, { type AuthUser } from "../store/authStore";
 
 interface UserResponse {
   user: AuthUser;
 }
 
-export async function register(input: { name: string; email: string; password: string }): Promise<AuthUser> {
-  const { user } = await apiFetch<UserResponse>('/auth/register', { body: input });
+export async function register(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthUser> {
+  const { user } = await apiFetch<UserResponse>("/auth/register", {
+    body: input,
+  });
   useAuthStore.getState().setUser(user);
   return user;
 }
 
-export async function login(input: { email: string; password: string }): Promise<AuthUser> {
-  const { user } = await apiFetch<UserResponse>('/auth/login', { body: input });
+export async function login(input: {
+  email: string;
+  password: string;
+}): Promise<AuthUser> {
+  const { user } = await apiFetch<UserResponse>("/auth/login", { body: input });
   useAuthStore.getState().setUser(user);
   return user;
 }
 
 export async function logout(): Promise<void> {
   try {
-    await apiFetch('/auth/logout', { method: 'POST' });
+    await apiFetch("/auth/logout", { method: "POST" });
   } finally {
     // Even if the request fails, the user asked to sign out
     useAuthStore.getState().setUser(null);
@@ -33,7 +42,7 @@ export async function logout(): Promise<void> {
 export async function initAuth(): Promise<void> {
   const { setUser, setLoading } = useAuthStore.getState();
   try {
-    const { user } = await apiFetch<UserResponse>('/auth/me');
+    const { user } = await apiFetch<UserResponse>("/auth/me");
     setUser(user);
   } catch {
     setUser(null);

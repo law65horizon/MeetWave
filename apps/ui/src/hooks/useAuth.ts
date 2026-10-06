@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import useAuthStore from '../store/authStore';
+import { useEffect } from "react";
+import useAuthStore from "../store/authStore";
 
 /**
  * Primary auth hook. Reads from the Zustand store which is kept in sync

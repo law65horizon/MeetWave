@@ -1,19 +1,19 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
-import ReactDOM from 'react-dom/client';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { Toaster } from 'react-hot-toast';
-import { darkTheme, lightTheme } from './theme/index';
-import App from './App';
+import React, { createContext, useContext, useState, useMemo } from "react";
+import ReactDOM from "react-dom/client";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import { Toaster } from "react-hot-toast";
+import { darkTheme, lightTheme } from "./theme/index";
+import App from "./App";
 
 // ─── Theme mode context ───────────────────────────────────────────────────────
 interface ThemeModeContextValue {
-  mode: 'light' | 'dark';
+  mode: "light" | "dark";
   toggleMode: () => void;
 }
 
 export const ThemeModeContext = createContext<ThemeModeContextValue>({
-  mode: 'dark',
+  mode: "dark",
   toggleMode: () => {},
 });
 
@@ -23,30 +23,33 @@ export function useThemeMode() {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 function Root() {
-  const [mode, setMode] = useState<'light' | 'dark'>('dark');
+  const [mode, setMode] = useState<"light" | "dark">("dark");
 
   const themeModeValue = useMemo<ThemeModeContextValue>(
-    () => ({ mode, toggleMode: () => setMode((m) => (m === 'dark' ? 'light' : 'dark')) }),
+    () => ({
+      mode,
+      toggleMode: () => setMode((m) => (m === "dark" ? "light" : "dark")),
+    }),
     [mode],
   );
 
-  const theme = mode === 'dark' ? darkTheme : lightTheme;
+  const theme = mode === "dark" ? darkTheme : lightTheme;
 
   // Toaster adapts to mode
   const toasterStyle =
-    mode === 'dark'
+    mode === "dark"
       ? {
-          background: 'rgba(15,17,23,0.95)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          color: '#F1F5F9',
+          background: "rgba(15,17,23,0.95)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          color: "#F1F5F9",
         }
       : {
-          background: 'rgba(255,255,255,0.96)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(15,23,42,0.1)',
-          color: '#0F172A',
-          boxShadow: '0 8px 32px rgba(15,23,42,0.12)',
+          background: "rgba(255,255,255,0.96)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(15,23,42,0.1)",
+          color: "#0F172A",
+          boxShadow: "0 8px 32px rgba(15,23,42,0.12)",
         };
 
   return (
@@ -61,15 +64,16 @@ function Root() {
               ...toasterStyle,
               fontFamily: '"Sora", "DM Sans", sans-serif',
               fontWeight: 500,
-              fontSize: '0.875rem',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              boxShadow: mode === 'dark'
-                ? '0 8px 32px rgba(0,0,0,0.4)'
-                : '0 8px 32px rgba(15,23,42,0.12)',
+              fontSize: "0.875rem",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              boxShadow:
+                mode === "dark"
+                  ? "0 8px 32px rgba(0,0,0,0.4)"
+                  : "0 8px 32px rgba(15,23,42,0.12)",
             },
-            success: { iconTheme: { primary: '#10B981', secondary: '#fff' } },
-            error:   { iconTheme: { primary: '#EF4444', secondary: '#fff' } },
+            success: { iconTheme: { primary: "#10B981", secondary: "#fff" } },
+            error: { iconTheme: { primary: "#EF4444", secondary: "#fff" } },
           }}
         />
       </ThemeProvider>
@@ -85,10 +89,7 @@ function Root() {
 
 // ... keep all your imports, context, and Root component code exactly the same ...
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <Root />
-);
-
+ReactDOM.createRoot(document.getElementById("root")!).render(<Root />);
 
 // import React from 'react';
 // import ReactDOM from 'react-dom/client';

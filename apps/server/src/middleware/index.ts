@@ -23,12 +23,18 @@ export interface AuthenticatedSocket extends Socket {
   };
 }
 
-export function requireAuth(req: AppRequest, res: Response, next: NextFunction) {
+export function requireAuth(
+  req: AppRequest,
+  res: Response,
+  next: NextFunction,
+) {
   const token = extractToken(req);
   if (!token) {
     // The browser deletes the access cookie when its maxAge passes, so an expired
     // session usually arrives as "no token". The client refreshes on ANY 401.
-    return res.status(401).json({ error: "Not authenticated", code: "NO_TOKEN" });
+    return res
+      .status(401)
+      .json({ error: "Not authenticated", code: "NO_TOKEN" });
   }
 
   try {
@@ -45,8 +51,13 @@ export function requireAuth(req: AppRequest, res: Response, next: NextFunction) 
 
 const parseCookies = cookieParser();
 
-function resolveDisplayName(provided: unknown, accountName: string | undefined, id: string): string {
-  const clean = typeof provided === "string" ? provided.trim().slice(0, 50) : "";
+function resolveDisplayName(
+  provided: unknown,
+  accountName: string | undefined,
+  id: string,
+): string {
+  const clean =
+    typeof provided === "string" ? provided.trim().slice(0, 50) : "";
   return clean || accountName?.trim() || `Guest-${id.slice(0, 4)}`;
 }
 
@@ -54,17 +65,22 @@ function resolveDisplayName(provided: unknown, accountName: string | undefined, 
  * Errors are plain Error(code) so the client reads `err.message`:
  * NOT_IN_ROOM | UNAUTHENTICATED | TOKEN_EXPIRED | TOKEN_INVALID | INTERNAL_SERVER_ERROR
  */
-export async function socketMiddleware(socket: Socket, next: (err?: Error) => void): Promise<void> {
+export async function socketMiddleware(
+  socket: Socket,
+  next: (err?: Error) => void,
+): Promise<void> {
   try {
     const rawRoomId = socket.handshake.auth?.roomId;
     const demoUserId = socket.handshake.auth?.demoUserId;
-    if (typeof rawRoomId !== "string" || !rawRoomId.trim()) throw new Error("NOT_IN_ROOM");
+    if (typeof rawRoomId !== "string" || !rawRoomId.trim())
+      throw new Error("NOT_IN_ROOM");
     const roomId = rawRoomId.toLowerCase().trim();
 
     await new Promise<void>((resolve) => {
       parseCookies(socket.request as any, {} as any, () => resolve());
     });
-    const token = (socket.request as any).cookies?.[ACCESS_COOKIE] as string | undefined;
+    const token = (socket.request as any).cookies?.[ACCESS_COOKIE] as
+      string | undefined;
 
     let userId: string | undefined;
     if (token) {
@@ -73,7 +89,11 @@ export async function socketMiddleware(socket: Socket, next: (err?: Error) => vo
       } catch (err) {
         // Don't silently downgrade a logged-in user to a guest (they would lose host rights).
         // The client should refresh the session and reconnect on TOKEN_EXPIRED.
-        throw new Error((err as Error).name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "TOKEN_INVALID");
+        throw new Error(
+          (err as Error).name === "TokenExpiredError"
+            ? "TOKEN_EXPIRED"
+            : "TOKEN_INVALID",
+        );
       }
     }
 
@@ -84,17 +104,32 @@ export async function socketMiddleware(socket: Socket, next: (err?: Error) => vo
     // hydrated its auth store before connecting.
     const accountName = userId ? (await findUserById(userId))?.name : undefined;
 
-    const id = userId ?? demoUserId?? randomUUID();
+    const id = userId ?? demoUserId ?? randomUUID();
     const data = socket.data as AuthenticatedSocket["data"];
     data.id = id;
     data.requestedRoomId = roomId;
-    data.displayName = resolveDisplayName(socket.handshake.auth?.displayName, accountName, id);
+    data.displayName = resolveDisplayName(
+      socket.handshake.auth?.displayName,
+      accountName,
+      id,
+    );
 
     next();
   } catch (error: any) {
     logger.warn({ err: error?.message ?? "" }, "Socket auth failed");
-    const known = ["NOT_IN_ROOM", "UNAUTHENTICATED", "TOKEN_EXPIRED", "TOKEN_INVALID"];
-    next(new Error(known.includes(error?.message) ? error.message : "INTERNAL_SERVER_ERROR"));
+    const known = [
+      "NOT_IN_ROOM",
+      "UNAUTHENTICATED",
+      "TOKEN_EXPIRED",
+      "TOKEN_INVALID",
+    ];
+    next(
+      new Error(
+        known.includes(error?.message)
+          ? error.message
+          : "INTERNAL_SERVER_ERROR",
+      ),
+    );
   }
 }
 

@@ -39,7 +39,12 @@ export async function createUser(input: {
   const claimed = await redis.set(emailKey(email), id, { NX: true });
   if (claimed === null) throw new EmailTakenError();
 
-  const user: User = { id, name: input.name.trim(), email, passwordHash: input.passwordHash };
+  const user: User = {
+    id,
+    name: input.name.trim(),
+    email,
+    passwordHash: input.passwordHash,
+  };
   try {
     await redis.hSet(userKey(id), { ...user });
   } catch (err) {

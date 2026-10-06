@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 
 export interface MediaDevice {
   deviceId: string;
@@ -17,8 +17,14 @@ interface UseDevicesReturn {
   setSelectedMic: (id: string) => void;
   setSelectedSpeaker: (id: string) => void;
   getUserMedia: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
-  switchCamera: (deviceId: string, currentStream: MediaStream | null) => Promise<MediaStream>;
-  switchMic: (deviceId: string, currentStream: MediaStream | null) => Promise<MediaStream>;
+  switchCamera: (
+    deviceId: string,
+    currentStream: MediaStream | null,
+  ) => Promise<MediaStream>;
+  switchMic: (
+    deviceId: string,
+    currentStream: MediaStream | null,
+  ) => Promise<MediaStream>;
   refresh: () => Promise<void>;
 }
 
@@ -26,19 +32,37 @@ export function useDevices(): UseDevicesReturn {
   const [cameras, setCameras] = useState<MediaDevice[]>([]);
   const [microphones, setMicrophones] = useState<MediaDevice[]>([]);
   const [speakers, setSpeakers] = useState<MediaDevice[]>([]);
-  const [selectedCamera, setSelectedCamera] = useState('');
-  const [selectedMic, setSelectedMic] = useState('');
-  const [selectedSpeaker, setSelectedSpeaker] = useState('default');
+  const [selectedCamera, setSelectedCamera] = useState("");
+  const [selectedMic, setSelectedMic] = useState("");
+  const [selectedSpeaker, setSelectedSpeaker] = useState("default");
 
   const refresh = useCallback(async () => {
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const cams = devices.filter((d) => d.kind === 'videoinput');
-    const mics = devices.filter((d) => d.kind === 'audioinput');
-    const spks = devices.filter((d) => d.kind === 'audiooutput');
+    const cams = devices.filter((d) => d.kind === "videoinput");
+    const mics = devices.filter((d) => d.kind === "audioinput");
+    const spks = devices.filter((d) => d.kind === "audiooutput");
 
-    setCameras(cams.map((d) => ({ deviceId: d.deviceId, label: d.label || `Camera ${cams.indexOf(d) + 1}`, kind: d.kind })));
-    setMicrophones(mics.map((d) => ({ deviceId: d.deviceId, label: d.label || `Mic ${mics.indexOf(d) + 1}`, kind: d.kind })));
-    setSpeakers(spks.map((d) => ({ deviceId: d.deviceId, label: d.label || `Speaker ${spks.indexOf(d) + 1}`, kind: d.kind })));
+    setCameras(
+      cams.map((d) => ({
+        deviceId: d.deviceId,
+        label: d.label || `Camera ${cams.indexOf(d) + 1}`,
+        kind: d.kind,
+      })),
+    );
+    setMicrophones(
+      mics.map((d) => ({
+        deviceId: d.deviceId,
+        label: d.label || `Mic ${mics.indexOf(d) + 1}`,
+        kind: d.kind,
+      })),
+    );
+    setSpeakers(
+      spks.map((d) => ({
+        deviceId: d.deviceId,
+        label: d.label || `Speaker ${spks.indexOf(d) + 1}`,
+        kind: d.kind,
+      })),
+    );
 
     if (!selectedCamera && cams.length) setSelectedCamera(cams[0].deviceId);
     if (!selectedMic && mics.length) setSelectedMic(mics[0].deviceId);
@@ -46,8 +70,9 @@ export function useDevices(): UseDevicesReturn {
 
   useEffect(() => {
     refresh();
-    navigator.mediaDevices.addEventListener('devicechange', refresh);
-    return () => navigator.mediaDevices.removeEventListener('devicechange', refresh);
+    navigator.mediaDevices.addEventListener("devicechange", refresh);
+    return () =>
+      navigator.mediaDevices.removeEventListener("devicechange", refresh);
   }, [refresh]);
 
   const getUserMedia = useCallback(
@@ -55,7 +80,9 @@ export function useDevices(): UseDevicesReturn {
       return navigator.mediaDevices.getUserMedia(
         constraints ?? {
           audio: selectedMic ? { deviceId: { exact: selectedMic } } : true,
-          video: selectedCamera ? { deviceId: { exact: selectedCamera }, width: 1280, height: 720 } : true,
+          video: selectedCamera
+            ? { deviceId: { exact: selectedCamera }, width: 1280, height: 720 }
+            : true,
         },
       );
     },
@@ -63,7 +90,10 @@ export function useDevices(): UseDevicesReturn {
   );
 
   const switchCamera = useCallback(
-    async (deviceId: string, currentStream: MediaStream | null): Promise<MediaStream> => {
+    async (
+      deviceId: string,
+      currentStream: MediaStream | null,
+    ): Promise<MediaStream> => {
       setSelectedCamera(deviceId);
       const newStream = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: deviceId }, width: 1280, height: 720 },
@@ -72,7 +102,10 @@ export function useDevices(): UseDevicesReturn {
 
       if (currentStream) {
         const oldTracks = currentStream.getVideoTracks();
-        oldTracks.forEach((t) => { currentStream.removeTrack(t); t.stop(); });
+        oldTracks.forEach((t) => {
+          currentStream.removeTrack(t);
+          t.stop();
+        });
         newStream.getVideoTracks().forEach((t) => currentStream.addTrack(t));
         return currentStream;
       }
@@ -82,7 +115,10 @@ export function useDevices(): UseDevicesReturn {
   );
 
   const switchMic = useCallback(
-    async (deviceId: string, currentStream: MediaStream | null): Promise<MediaStream> => {
+    async (
+      deviceId: string,
+      currentStream: MediaStream | null,
+    ): Promise<MediaStream> => {
       setSelectedMic(deviceId);
       const newStream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: { exact: deviceId } },
@@ -91,7 +127,10 @@ export function useDevices(): UseDevicesReturn {
 
       if (currentStream) {
         const oldTracks = currentStream.getAudioTracks();
-        oldTracks.forEach((t) => { currentStream.removeTrack(t); t.stop(); });
+        oldTracks.forEach((t) => {
+          currentStream.removeTrack(t);
+          t.stop();
+        });
         newStream.getAudioTracks().forEach((t) => currentStream.addTrack(t));
         return currentStream;
       }
@@ -101,9 +140,18 @@ export function useDevices(): UseDevicesReturn {
   );
 
   return {
-    cameras, microphones, speakers,
-    selectedCamera, selectedMic, selectedSpeaker,
-    setSelectedCamera, setSelectedMic, setSelectedSpeaker,
-    getUserMedia, switchCamera, switchMic, refresh,
+    cameras,
+    microphones,
+    speakers,
+    selectedCamera,
+    selectedMic,
+    selectedSpeaker,
+    setSelectedCamera,
+    setSelectedMic,
+    setSelectedSpeaker,
+    getUserMedia,
+    switchCamera,
+    switchMic,
+    refresh,
   };
 }

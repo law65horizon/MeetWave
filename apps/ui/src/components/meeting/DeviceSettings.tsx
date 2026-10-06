@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 import {
   Box,
   FormControl,
@@ -9,9 +9,9 @@ import {
   Divider,
   FormControlLabel,
   Switch,
-} from '@mui/material';
-import { useNewMeetingStore } from '../../store/newMeetingStore'; 
-import { MediaDevice } from '../../types';
+} from "@mui/material";
+import { useNewMeetingStore } from "../../store/newMeetingStore";
+import { MediaDevice } from "../../types";
 
 const DeviceSettings = () => {
   const {
@@ -34,13 +34,13 @@ const DeviceSettings = () => {
   }, [fetchDevices]);
 
   const audioInputDevices = devices.filter(
-    (device) => device.kind === 'audioinput'
+    (device) => device.kind === "audioinput",
   );
   const audioOutputDevices = devices.filter(
-    (device) => device.kind === 'audiooutput'
+    (device) => device.kind === "audiooutput",
   );
   const videoInputDevices = devices.filter(
-    (device) => device.kind === 'videoinput'
+    (device) => device.kind === "videoinput",
   );
 
   return (
@@ -48,7 +48,7 @@ const DeviceSettings = () => {
       <Typography variant="h6" gutterBottom>
         Audio Settings
       </Typography>
-      
+
       <FormControl fullWidth margin="normal">
         <InputLabel id="audio-input-label">Microphone</InputLabel>
         <Select
@@ -65,7 +65,7 @@ const DeviceSettings = () => {
           ))}
         </Select>
       </FormControl>
-      
+
       <FormControl fullWidth margin="normal">
         <InputLabel id="audio-output-label">Speaker</InputLabel>
         <Select
@@ -82,7 +82,7 @@ const DeviceSettings = () => {
           ))}
         </Select>
       </FormControl>
-      
+
       <FormControlLabel
         control={
           <Switch
@@ -93,13 +93,13 @@ const DeviceSettings = () => {
         }
         label="Microphone Active"
       />
-      
+
       <Divider sx={{ my: 2 }} />
-      
+
       <Typography variant="h6" gutterBottom>
         Video Settings
       </Typography>
-      
+
       <FormControl fullWidth margin="normal">
         <InputLabel id="video-input-label">Camera</InputLabel>
         <Select
@@ -116,7 +116,7 @@ const DeviceSettings = () => {
           ))}
         </Select>
       </FormControl>
-      
+
       <FormControlLabel
         control={
           <Switch
@@ -127,9 +127,9 @@ const DeviceSettings = () => {
         }
         label="Camera Active"
       />
-      
+
       <Divider sx={{ my: 2 }} />
-      
+
       <Box sx={{ mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Note: In a real application, changing these settings would update your

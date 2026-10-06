@@ -1,10 +1,10 @@
-import {  Request } from "express";
+import { Request } from "express";
 
-export type RoomMode = 'conference' | 'broadcast';
+export type RoomMode = "conference" | "broadcast";
 
 export interface AppRequest extends Request {
-  userId?: string
-} 
+  userId?: string;
+}
 
 export interface RoomMeta {
   roomId: string;
@@ -17,7 +17,7 @@ export interface RoomMeta {
   maxParticipants: number;
   createdAt: number;
   serverId: string;
-  private?: boolean
+  private?: boolean;
 }
 
 export interface ParticipantMeta {
@@ -28,7 +28,7 @@ export interface ParticipantMeta {
   roomId: string;
   isHost: boolean;
   /** In broadcast mode, only the host/broadcaster produces media */
-  role: 'host' | 'broadcaster' | 'viewer' | 'participant';
+  role: "host" | "broadcaster" | "viewer" | "participant";
   joinedAt: number;
   /** Last heartbeat timestamp — used for stale detection */
   lastSeen: number;
@@ -67,7 +67,7 @@ export interface ProducerInfo {
   socketId: string;
   userId: string;
   displayName: string;
-  kind: 'audio' | 'video';
+  kind: "audio" | "video";
   paused: boolean;
   /** screenShare producers are tagged separately */
   isScreenShare: boolean;

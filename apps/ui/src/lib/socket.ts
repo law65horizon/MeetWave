@@ -1,22 +1,30 @@
-import { io, Socket } from 'socket.io-client';
+import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io(import.meta.env.VITE_API_URL || 'https://66ce-143-105-174-4.ngrok-free.app', {
-      transports: ['websocket', 'polling'],
-      autoConnect: false,
-      withCredentials: true,
-      extraHeaders: { 
-        "ngrok-skip-browser-warning": "true"
-      }
-    });
+    socket = io(
+      import.meta.env.VITE_API_URL ||
+        "https://66ce-143-105-174-4.ngrok-free.app",
+      {
+        transports: ["websocket", "polling"],
+        autoConnect: false,
+        withCredentials: true,
+        extraHeaders: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      },
+    );
   }
   return socket;
 }
 
-export async function connectSocket(roomId: string, displayName?: string, demoUserId?: string): Promise<Socket> {
+export async function connectSocket(
+  roomId: string,
+  displayName?: string,
+  demoUserId?: string,
+): Promise<Socket> {
   const s = getSocket();
   s.auth = { roomId, displayName, demoUserId };
   if (!s.connected) s.connect();

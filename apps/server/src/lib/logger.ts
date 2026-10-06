@@ -1,16 +1,19 @@
-import pino from 'pino';
-import { config } from '../config';
+import pino from "pino";
+import { config } from "../config";
 
 export const logger = pino({
-  level: config.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: config.NODE_ENV === "production" ? "info" : "debug",
+  formatters: {
+    level: (label) => ({ level: label.toUpperCase() }),
+  },
   transport:
-    config.NODE_ENV !== 'production'
+    config.NODE_ENV !== "production"
       ? {
-          target: 'pino-pretty',
+          target: "pino-pretty",
           options: {
             colorize: true,
-            translateTime: 'SYS:HH:MM:ss',
-            ignore: 'pid,hostname',
+            translateTime: "SYS:HH:MM:ss",
+            ignore: "pid,hostname",
           },
         }
       : undefined,

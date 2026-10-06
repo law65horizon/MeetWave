@@ -1,0 +1,60 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    init: true
+    restart: unless-stopped
+    logging: 
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 30s
+    network_mode: "host"
+    environment:
+      PORT: ${PORT}
+      NODE_ENV: ${NODE_ENV}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN}
+      REDIS_URL: ${REDIS_URL}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      REDIS_PORT: ${REDIS_PORT}
+      MEDIASOUP_WORKER_COUNT: ${MEDIASOUP_WORKER_COUNT}
+      MEDIASOUP_MIN_PORT: ${MEDIASOUP_MIN_PORT}
+      MEDIASOUP_MAX_PORT: ${MEDIASOUP_MAX_PORT}
+      ANNOUNCED_IP: ${ANNOUNCED_IP}
+      TURN_URLS: ${TURN_URLS}
+      TURN_USERNAME: ${TURN_USERNAME}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL}     
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch(`http://127.0.0.1:$${PORT}/health`).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

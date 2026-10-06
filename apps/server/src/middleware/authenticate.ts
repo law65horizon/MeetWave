@@ -36,11 +36,12 @@ export function verifyAccessToken(token: string): JwtPayload & { sub: string } {
     const payload = jwt.verify(token, config.JWT_ACCESS_SECRET, {
       algorithms: ["HS256"],
     });
-    if (typeof payload === "string" || !payload.sub) throw new Error("Malformed token");
-    return payload as JwtPayload & { sub: string }
+    if (typeof payload === "string" || !payload.sub)
+      throw new Error("Malformed token");
+    return payload as JwtPayload & { sub: string };
   } catch (error) {
-    throw new AppError('UNAUTHORIZED', 'Invalid or expired token', 401)
-  };
+    throw new AppError("UNAUTHORIZED", "Invalid or expired token", 401);
+  }
 }
 
 async function issueRefreshToken(userId: string): Promise<string> {
@@ -70,7 +71,9 @@ export async function issueTokenPair(userId: string): Promise<TokenPair> {
 
 function decodeRefresh(token: string): { sub: string; jti: string } {
   try {
-    const p = jwt.verify(token, config.JWT_REFRESH_SECRET, { algorithms: ["HS256"] });
+    const p = jwt.verify(token, config.JWT_REFRESH_SECRET, {
+      algorithms: ["HS256"],
+    });
     if (typeof p === "string" || !p.sub || !p.jti) throw new Error();
     return { sub: p.sub, jti: p.jti };
   } catch {
@@ -86,7 +89,9 @@ function decodeRefresh(token: string): { sub: string; jti: string } {
  * 3. If it returned 0, the token was already used (or revoked). A legitimate
  *    client never does that, so assume theft and kill all of the user's sessions.
  */
-export async function rotateRefreshToken(token: string): Promise<TokenPair & { userId: string }> {
+export async function rotateRefreshToken(
+  token: string,
+): Promise<TokenPair & { userId: string }> {
   const { sub: userId, jti } = decodeRefresh(token);
 
   const removed = await redis.del(refreshKey(jti));
@@ -103,7 +108,11 @@ export async function rotateRefreshToken(token: string): Promise<TokenPair & { u
 export async function revokeRefreshToken(token: string): Promise<void> {
   try {
     const { sub, jti } = decodeRefresh(token);
-    await redis.multi().del(refreshKey(jti)).sRem(userSessionsKey(sub), jti).exec();
+    await redis
+      .multi()
+      .del(refreshKey(jti))
+      .sRem(userSessionsKey(sub), jti)
+      .exec();
   } catch {
     // Already invalid or expired: nothing to revoke, logout still succeeds.
   }

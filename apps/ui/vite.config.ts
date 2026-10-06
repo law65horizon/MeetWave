@@ -1,40 +1,29 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: { "@": path.resolve(__dirname, "./src") },
+  },
+  esbuild: {
+    // only strip on `vite build`, never during `vite dev`
+    pure:
+      command === "build"
+        ? ["console.log", "console.debug", "console.info"]
+        : [],
+    drop: command === "build" ? ["debugger"] : [],
   },
   server: {
-    allowedHosts: ['.ngrok-free.app'],
+    allowedHosts: [".ngrok-free.app"],
     port: 5173,
     proxy: {
-      '/socket.io': {
-        target: 'http://localhost:3001',
+      "/socket.io": {
+        target: "http://localhost:3001",
         ws: true,
         changeOrigin: true,
       },
     },
   },
-});
-
-// import { defineConfig } from 'vite';
-// import react from '@vitejs/plugin-react';
-
-// export default defineConfig({
-//   plugins: [react()],
-//   optimizeDeps: {
-//     exclude: ['lucide-react'],
-//   },
-//   server: {
-//     // 1. Remove "https://" and only use the domain name
-//     allowedHosts: ["5dc4-98-97-76-110.ngrok-free.app"],
-    
-//     // 2. Fix HMR by forcing the client to use the standard HTTPS port (443)
-//     hmr: {
-//       clientPort: 443,
-//     },
-//   }
-// });
+}));

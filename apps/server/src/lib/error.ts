@@ -4,7 +4,7 @@ export class AppError extends Error {
     message: string,
     public readonly statusCode: number = 500,
   ) {
-    super(message)
-    this.name = 'AppError'
+    super(message);
+    this.name = "AppError";
   }
 }

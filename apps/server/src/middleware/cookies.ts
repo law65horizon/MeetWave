@@ -11,7 +11,7 @@ const isProd = process.env.NODE_ENV === "production";
 // (localhost:5173 + localhost:3000 in dev, app.example.com + api.example.com in prod).
 // If they live on completely different domains you need COOKIE_SAMESITE=none
 // (which forces `secure`), and then you should also add CSRF protection.
-const sameSite = 'none';
+const sameSite = "none";
 // const sameSite = (process.env.COOKIE_SAMESITE as "lax" | "strict" | "none" | undefined) ?? "lax";
 
 const base: CookieOptions = {
@@ -26,16 +26,19 @@ const base: CookieOptions = {
 const ACCESS_PATH = "/";
 const REFRESH_PATH = "/auth";
 
-export function setAuthCookies(res: Response, tokens: Pick<TokenPair, "accessToken" | "refreshToken">) {
+export function setAuthCookies(
+  res: Response,
+  tokens: Pick<TokenPair, "accessToken" | "refreshToken">,
+) {
   res.cookie(ACCESS_COOKIE, tokens.accessToken, {
     ...base,
     path: ACCESS_PATH,
-    maxAge: config.TTL_ACCESS_SECRET * 1000, // cookie maxAge is in milliseconds
+    maxAge: config.TTL_ACCESS_SECRET, // cookie maxAge is in milliseconds
   });
   res.cookie(REFRESH_COOKIE, tokens.refreshToken, {
     ...base,
     path: REFRESH_PATH,
-    maxAge: config.TTL_REFRESH_SECRET * 1000,
+    maxAge: config.TTL_REFRESH_SECRET,
   });
 }
 
