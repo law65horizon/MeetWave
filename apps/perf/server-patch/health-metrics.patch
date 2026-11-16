@@ -1,0 +1,60 @@
+--- a/apps/server/src/server.ts	2026-11-16 09:02:09.062754696 +0000
++++ b/apps/server/src/server.ts	2026-11-16 09:02:20.261088169 +0000
+@@ -17,7 +17,24 @@
+ import { AppError } from "./lib/error";
+ import { randomUUID } from "crypto";
+ import { pinoHttp } from "pino-http";
++import { monitorEventLoopDelay } from "perf_hooks";
+ const SERVER_ID = os.hostname();
++
++// ── perf metrics for /health (used by apps/perf) ──
++// Event-loop delay is snapshotted every 5s so several pollers can read the same window.
++const loopHist = monitorEventLoopDelay({ resolution: 10 });
++loopHist.enable();
++let eventLoop = { meanMs: 0, p50Ms: 0, p99Ms: 0, maxMs: 0 };
++setInterval(() => {
++  eventLoop = {
++    meanMs: loopHist.mean / 1e6,
++    p50Ms: loopHist.percentile(50) / 1e6,
++    p99Ms: loopHist.percentile(99) / 1e6,
++    maxMs: loopHist.max / 1e6,
++  };
++  loopHist.reset();
++}, 5000).unref();
++let ioRef: ReturnType<typeof createSocketServer> | undefined;
+ function generateRoomId(): string {
+   const words = [
+     "oak",
+@@ -78,6 +95,10 @@
+       workerStats,
+       uptime: process.uptime(),
+       memory: process.memoryUsage(),
++      cpu: process.cpuUsage(), // cumulative µs {user, system}
++      eventLoop,
++      sockets: ioRef?.engine.clientsCount ?? 0,
++      routers: workerPool.routerCount,
+     });
+   });
+ 
+@@ -161,7 +182,7 @@
+   app.use((_req, res) => res.status(404).json({ error: "Not found" }));
+ 
+   const httpServer = http.createServer(app);
+-  createSocketServer(httpServer);
++  ioRef = createSocketServer(httpServer);
+ 
+   httpServer.listen(config.PORT, "127.0.0.1", () => {
+     logger.info(
+--- a/apps/server/src/mediasoup/workerPool.ts	2026-11-16 09:02:09.064410498 +0000
++++ b/apps/server/src/mediasoup/workerPool.ts	2026-11-16 09:02:20.262050993 +0000
+@@ -90,6 +90,10 @@
+     );
+   }
+ 
++  get routerCount(): number {
++    return this.routers.size;
++  }
++
+   get workerCount(): number {
+     return this.workers.length;
+   }

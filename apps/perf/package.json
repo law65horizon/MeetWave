@@ -1,0 +1,25 @@
+{
+  "name": "meetapp-perf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "k6 performance tests for meetapp-server: latency, glass-to-glass, CPU/RAM, rooms and participants",
+  "scripts": {
+    "build:harness": "node harness/build.mjs",
+    "smoke": "node scripts/run.mjs smoke",
+    "load": "node scripts/run.mjs load",
+    "stress": "node scripts/run.mjs stress",
+    "soak": "node scripts/run.mjs soak",
+    "smoke:signaling": "node scripts/run.mjs smoke signaling",
+    "smoke:g2g": "node scripts/run.mjs smoke g2g"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "mediasoup-client": "^3.14.0",
+    "socket.io-client": "^4.7.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
+  "engines": { "node": ">=20" }
+}
