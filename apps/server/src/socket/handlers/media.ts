@@ -32,6 +32,76 @@ function getConsumers(socketId: string): Map<string, Consumer> {
   return socketConsumers.get(socketId)!;
 }
 
+// ─── STATS POLLING ──────────────────────────────────────────────────────────
+const statsTimers = new Map<string, NodeJS.Timeout>(); // consumerId / producerId -> timer
+
+function stopStats(id: string) {
+  const t = statsTimers.get(id);
+  if (t) clearInterval(t);
+  statsTimers.delete(id);
+}
+
+function startConsumerStats(consumer: Consumer, socket: AuthenticatedSocket) {
+  if (statsTimers.has(consumer.id)) return;
+  const clockRate = consumer.rtpParameters.codecs[0].clockRate; // 48000 audio, 90000 video
+
+  const timer = setInterval(async () => {
+    if (consumer.closed) return stopStats(consumer.id);
+    try {
+      const stats = await consumer.getStats();
+      const out = stats.find((s) => s.type === "outbound-rtp");
+      if (!out || out.roundTripTime === undefined) return; // no RTCP RR yet
+
+      const sample = {
+        consumerId: consumer.id,
+        kind: consumer.kind,
+        rttMs: Number(out.roundTripTime.toFixed(2)),
+        jitterMs: Number(((out.jitter / clockRate) * 1000).toFixed(2)),
+        packetsLost: out.packetsLost,
+        fractionLost: out.fractionLost,
+        bitrateKbps: Math.round(out.bitrate / 1000),
+      };
+
+      logger.debug({ sample }, "[consumer stats]");
+      socket.emit("consumer:stats", sample);
+    } catch {
+      stopStats(consumer.id); // consumer closed mid-poll
+    }
+  }, 2000);
+
+  statsTimers.set(consumer.id, timer);
+}
+
+function startProducerStats(producer: Producer) {
+  if (statsTimers.has(producer.id)) return;
+  const clockRate = producer.rtpParameters.codecs[0].clockRate;
+
+  const timer = setInterval(async () => {
+    if (producer.closed) return stopStats(producer.id);
+    try {
+      const stats = await producer.getStats(); // one inbound-rtp entry per simulcast layer
+      for (const s of stats) {
+        logger.debug(
+          {
+            producerId: producer.id,
+            kind: producer.kind,
+            rid: s.rid,
+            jitterMs: Number(((s.jitter / clockRate) * 1000).toFixed(2)),
+            packetsLost: s.packetsLost,
+            bitrateKbps: Math.round(s.bitrate / 1000),
+            score: s.score,
+          },
+          "[producer stats]",
+        );
+      }
+    } catch {
+      stopStats(producer.id);
+    }
+  }, 2000);
+
+  statsTimers.set(producer.id, timer);
+}
+
 export function registerMediaHandlers(
   io: Server,
   socket: AuthenticatedSocket,
@@ -146,6 +216,8 @@ export function registerMediaHandlers(
         });
 
         getProducers(socket.id).set(producer.id, producer);
+        // startProducerStats(producer);
+        producer.on("transportclose", () => stopStats(producer.id));
 
         // Register in Redis for cross-socket awareness
         await registerProducer(roomId, producer.id, {
@@ -219,8 +291,12 @@ export function registerMediaHandlers(
 
         getConsumers(socket.id).set(consumer.id, consumer);
 
-        consumer.on("transportclose", () => consumer.close());
+        consumer.on("transportclose", () => {
+          stopStats(consumer.id);
+          consumer.close();
+        });
         consumer.on("producerclose", () => {
+          stopStats(consumer.id);
           consumer.close();
           socket.emit("consumer:closed", { consumerId: consumer.id });
         });
@@ -255,6 +331,7 @@ export function registerMediaHandlers(
         if (!consumer) return cb({ error: "CONSUMER_NOT_FOUND" });
         logger.info("consumer resumed");
         await consumer.resume();
+        // startConsumerStats(consumer, socket);
         cb({});
       } catch (err) {
         cb({ error: "Failed" });
@@ -275,12 +352,10 @@ export function registerMediaHandlers(
         await producer.pause();
         const roomId = socket.data.roomId;
         if (roomId)
-          socket
-            .to(roomId)
-            .emit("producer:paused", {
-              producerId: data.producerId,
-              socketId: socket.id,
-            });
+          socket.to(roomId).emit("producer:paused", {
+            producerId: data.producerId,
+            socketId: socket.id,
+          });
         cb({});
       } catch (err) {
         cb({ error: "Failed" });
@@ -300,12 +375,10 @@ export function registerMediaHandlers(
         await producer.resume();
         const roomId = socket.data.roomId;
         if (roomId)
-          socket
-            .to(roomId)
-            .emit("producer:resumed", {
-              producerId: data.producerId,
-              socketId: socket.id,
-            });
+          socket.to(roomId).emit("producer:resumed", {
+            producerId: data.producerId,
+            socketId: socket.id,
+          });
         cb({});
       } catch (err) {
         cb({ error: "Failed" });
@@ -318,16 +391,15 @@ export function registerMediaHandlers(
     const producer = getProducers(socket.id).get(data.producerId);
     if (!producer) return;
     producer.close();
+    stopStats(data.producerId);
     getProducers(socket.id).delete(data.producerId);
     const roomId = socket.data.roomId;
     if (roomId) {
       await unregisterProducer(roomId, data.producerId);
-      socket
-        .to(roomId)
-        .emit("producer:closed", {
-          producerId: data.producerId,
-          socketId: socket.id,
-        });
+      socket.to(roomId).emit("producer:closed", {
+        producerId: data.producerId,
+        socketId: socket.id,
+      });
     }
   });
 
@@ -362,14 +434,6 @@ export function registerMediaHandlers(
 
   socket.on("requestKeyFrame", ({ roomId, consumerId }) => {
     const consumer = getConsumers(socket.id).get(consumerId);
-
-    // for (const peerInfo of room.peers.values()) {
-    //   const c = peerInfo.consumers.get(consumerId);
-    //   if (c) {
-    //     c.requestKeyFrame().catch(() => {});
-    //     break;
-    //   }
-    // }
     if (consumer) {
       consumer.requestKeyFrame().catch(() => {});
     }
@@ -381,6 +445,7 @@ export function cleanupSocketMedia(socketId: string): void {
   const producers = socketProducers.get(socketId);
   if (producers) {
     for (const [, producer] of producers) {
+      stopStats(producer.id);
       try {
         producer.close();
       } catch {}
@@ -392,6 +457,7 @@ export function cleanupSocketMedia(socketId: string): void {
   const consumers = socketConsumers.get(socketId);
   if (consumers) {
     for (const [, consumer] of consumers) {
+      stopStats(consumer.id);
       try {
         consumer.close();
       } catch {}

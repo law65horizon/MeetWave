@@ -90,6 +90,10 @@ class WorkerPool {
     );
   }
 
+  get routerCount(): number {
+    return this.routers.size;
+  }
+
   get workerCount(): number {
     return this.workers.length;
   }

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import * as dotenv from "dotenv";
-import { logger } from "../lib/logger";
 
 dotenv.config();
 
@@ -9,10 +8,11 @@ const configSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  CLIENT_ORIGIN: z.string().default("http://localhost:5173"),
+  CLIENT_ORIGIN: z
+    .string()
+    .default("http://localhost:5173")
+    .transform((val) => val.split(",").map((item) => item.trim())),
   REDIS_URL: z.string().default("redis://localhost:6379"),
-  REDIS_PASSWORD: z.string(),
-  REDIS_PORT: z.string(),
   MEDIASOUP_WORKER_COUNT: z.string().default("4").transform(Number),
   MEDIASOUP_MIN_PORT: z.string().default("40000").transform(Number),
   MEDIASOUP_MAX_PORT: z.string().default("49999").transform(Number),

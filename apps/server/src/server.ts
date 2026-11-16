@@ -17,7 +17,24 @@ import { findUserById } from "./routes/auth/authController";
 import { AppError } from "./lib/error";
 import { randomUUID } from "crypto";
 import { pinoHttp } from "pino-http";
+import { monitorEventLoopDelay } from "perf_hooks";
 const SERVER_ID = os.hostname();
+
+// ── perf metrics for /health (used by apps/perf) ──
+// Event-loop delay is snapshotted every 5s so several pollers can read the same window.
+const loopHist = monitorEventLoopDelay({ resolution: 10 });
+loopHist.enable();
+let eventLoop = { meanMs: 0, p50Ms: 0, p99Ms: 0, maxMs: 0 };
+setInterval(() => {
+  eventLoop = {
+    meanMs: loopHist.mean / 1e6,
+    p50Ms: loopHist.percentile(50) / 1e6,
+    p99Ms: loopHist.percentile(99) / 1e6,
+    maxMs: loopHist.max / 1e6,
+  };
+  loopHist.reset();
+}, 5000).unref();
+let ioRef: ReturnType<typeof createSocketServer> | undefined;
 function generateRoomId(): string {
   const words = [
     "oak",
@@ -51,7 +68,7 @@ async function bootstrap() {
   app.use(pinoHttp({ logger }));
   app.use(
     cors({
-      origin: [config.CLIENT_ORIGIN, "http://localhost:5173"],
+      origin: config.CLIENT_ORIGIN,
       credentials: true,
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: [
@@ -77,6 +94,10 @@ async function bootstrap() {
       workerStats,
       uptime: process.uptime(),
       memory: process.memoryUsage(),
+      cpu: process.cpuUsage(), // cumulative µs {user, system}
+      eventLoop,
+      sockets: ioRef?.engine.clientsCount ?? 0,
+      routers: workerPool.routerCount,
     });
   });
 
@@ -119,7 +140,6 @@ async function bootstrap() {
   app.post("/demo/create", async (req: AppRequest, res) => {
     const { name, mode, isLocked, password, maxParticipants, displayName } =
       req.body;
-
     try {
       const userId = randomUUID();
       // const user = await findUserById(userId)
@@ -150,6 +170,7 @@ async function bootstrap() {
         roomId,
       });
     } catch (err) {
+      logger.error({ err });
       res.status(500).json("Internal Server Error");
     }
   });
@@ -160,9 +181,9 @@ async function bootstrap() {
   app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 
   const httpServer = http.createServer(app);
-  createSocketServer(httpServer);
+  ioRef = createSocketServer(httpServer);
 
-  httpServer.listen(config.PORT, '127.0.0.1', () => {
+  httpServer.listen(config.PORT, "127.0.0.1", () => {
     logger.info(
       { port: config.PORT, env: config.NODE_ENV },
       "🚀 Server started",

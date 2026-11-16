@@ -36,6 +36,7 @@ export async function createRoom(meta: RoomMeta): Promise<void> {
   // Errors are intentionally NOT swallowed: a silently failed create looks like
   // "ROOM_NOT_FOUND" later and is very hard to trace.
   const tx = redis.multi();
+
   tx.hSet(K.room(meta.roomId), toHash(meta));
   tx.expire(K.room(meta.roomId), ROOM_TTL);
   tx.zAdd(K.activeRooms(), { score: Date.now(), value: meta.roomId });

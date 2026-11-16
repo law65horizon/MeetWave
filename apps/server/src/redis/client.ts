@@ -4,12 +4,7 @@ import { logger } from "../lib/logger";
 
 function createRedisClient(name: string) {
   const client = createClient({
-    username: "default",
-    password: config.REDIS_PASSWORD,
-    socket: {
-      host: config.REDIS_URL,
-      port: parseInt(config.REDIS_PORT),
-    },
+    url: config.REDIS_URL,
   });
 
   client.on("connect", () => logger.info({ name }, "Redis connected"));

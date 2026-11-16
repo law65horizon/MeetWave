@@ -25,3 +25,4 @@ dist-ssr
 .env
 
 serviceAccountKey.json
+meet-wave.pem
