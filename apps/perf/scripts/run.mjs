@@ -38,7 +38,7 @@ const has = (name) => {
   argv.splice(i, 1);
   return true;
 };
-const BASE_URL = flag("--base-url", "http://13.60.246.227:3001").replace(
+const BASE_URL = flag("--base-url", "http://16.171.197.100:3001").replace(
   /\/+$/,
   "",
 );
