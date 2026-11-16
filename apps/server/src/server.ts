@@ -183,7 +183,7 @@ async function bootstrap() {
   const httpServer = http.createServer(app);
   ioRef = createSocketServer(httpServer);
 
-  httpServer.listen(config.PORT, "127.0.0.1", () => {
+  httpServer.listen(config.PORT, "0.0.0.0", () => {
     logger.info(
       { port: config.PORT, env: config.NODE_ENV },
       "🚀 Server started",
