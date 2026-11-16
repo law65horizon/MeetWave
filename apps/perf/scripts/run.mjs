@@ -195,14 +195,14 @@ async function prepareBrowser() {
     //   (process.getuid && process.getuid() === 0) ||
     //   process.env.BROWSER_NO_SANDBOX === "1"
     // )
-    args.concat([
+    args.push(
       "no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
       "--disable-gpu",
       "--use-fake-ui-for-media-stream",
       "--use-fake-device-for-media-stream",
-    ]);
+    );
 
     env.K6_BROWSER_ARGS = args.join(",");
   }
