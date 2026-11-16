@@ -191,11 +191,11 @@ async function prepareBrowser() {
       "disable-backgrounding-occluded-windows",
     ];
     // Chrome refuses to start as root without this (typical in containers/CI)
-    if (
-      (process.getuid && process.getuid() === 0) ||
-      process.env.BROWSER_NO_SANDBOX === "1"
-    )
-      args.push("no-sandbox");
+    // if (
+    //   (process.getuid && process.getuid() === 0) ||
+    //   process.env.BROWSER_NO_SANDBOX === "1"
+    // )
+    args.push("no-sandbox");
     env.K6_BROWSER_ARGS = args.join(",");
   }
   return { env, close: () => server && server.close() };
