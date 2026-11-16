@@ -1,4 +1,4 @@
-FROM node:24-slim AS base
+FROM node:24-trixie-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -22,7 +22,7 @@ COPY apps/server/src ./apps/server/src
 RUN pnpm --filter "./apps/server" run build
 
 
-FROM node:24-slim AS runtime
+FROM node:24-trixie-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
